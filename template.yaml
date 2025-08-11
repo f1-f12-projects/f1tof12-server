@@ -4,7 +4,15 @@ Transform: AWS::Serverless-2016-10-31
 Globals:
   Function:
     Timeout: 30
-    Runtime: python3.9
+    Runtime: python3.12
+  HttpApi:
+    CorsConfiguration:
+      AllowOrigins:
+        - "*"
+      AllowHeaders:
+        - "*"
+      AllowMethods:
+        - "*"
 
 Resources:
   F1toF12API:
@@ -34,6 +42,11 @@ Resources:
           Type: HttpApi
           Properties:
             Path: /{proxy+}
+            Method: ANY
+        RootEvent:
+          Type: HttpApi
+          Properties:
+            Path: /
             Method: ANY
 
 Outputs:
