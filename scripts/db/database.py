@@ -1,6 +1,7 @@
-from sqlalchemy import create_engine, Column, Integer, String
+from sqlalchemy import create_engine, Column, Integer, String, DateTime
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+from datetime import datetime, timezone
 import boto3
 import os
 
@@ -23,6 +24,8 @@ class Company(Base):
     spoc = Column(String)
     email_id = Column(String)
     status = Column(String, default="active")
+    created_date = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_date = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
 def get_db():
     db = SessionLocal()

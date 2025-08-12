@@ -12,12 +12,14 @@ class CompanyCreate(BaseModel):
     email_id: str
     status: str = "active"
 
-class CompanyStatusUpdate(BaseModel):
-    status: str
+class CompanyUpdate(BaseModel):
+    spoc: str = None
+    email_id: str = None
+    status: str = None
     
     @field_validator('status')
     def validate_status(cls, v):
-        if v not in ['active', 'inactive']:
+        if v is not None and v not in ['active', 'inactive']:
             raise ValueError('Status must be either "active" or "inactive"')
         return v
 
@@ -35,13 +37,24 @@ def register(company: CompanyCreate, db: Session = Depends(get_db)):
 @router.get("/companies")
 def list_companies(db: Session = Depends(get_db)):
     companies = db.query(Company).all()
-    return [{"id": company.id, "name": company.name, "spoc": company.spoc, "email_id": company.email_id, "status": company.status} for company in companies]
+    return [{"id": company.id, "name": company.name, "spoc": company.spoc, "email_id": company.email_id, "status": company.status, "created_date": company.created_date, "updated_date": company.updated_date} for company in companies]
 
-@router.put("/companies/{company_id}/status")
-def update_company_status(company_id: int, status_update: CompanyStatusUpdate, db: Session = Depends(get_db)):
-    result = db.query(Company).filter(Company.id == company_id).update({"status": status_update.status})
+@router.put("/companies/{company_id}/update")
+def update_company(company_id: int, company_update: CompanyUpdate, db: Session = Depends(get_db)):
+    update_data = {}
+    if company_update.spoc is not None:
+        update_data[Company.spoc] = company_update.spoc
+    if company_update.email_id is not None:
+        update_data[Company.email_id] = company_update.email_id
+    if company_update.status is not None:
+        update_data[Company.status] = company_update.status
+    
+    if not update_data:
+        raise HTTPException(status_code=400, detail="No valid fields to update")
+    
+    result = db.query(Company).filter(Company.id == company_id).update(update_data)
     if result == 0:
         raise HTTPException(status_code=404, detail="Company not found")
     
     db.commit()
-    return {"message": "Company status updated successfully"}
+    return {"message": "Company updated successfully"}
