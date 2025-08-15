@@ -1,6 +1,6 @@
-from sqlalchemy import create_engine, Column, Integer, String, DateTime
+from sqlalchemy import create_engine, Column, Integer, String, DateTime, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, relationship
 from datetime import datetime, timezone
 import boto3
 import os
@@ -26,6 +26,20 @@ class Company(Base):
     status = Column(String, default="active")
     created_date = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_date = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+class SPOC(Base):
+    __tablename__ = "spocs"
+    id = Column(Integer, primary_key=True, index=True)
+    company_id = Column(Integer, ForeignKey("companies.id"))
+    name = Column(String)
+    phone = Column(String)
+    email_id = Column(String)
+    location = Column(String)
+    status = Column(String, default="active")
+    created_date = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_date = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    
+    company = relationship("Company")
 
 def get_db():
     db = SessionLocal()

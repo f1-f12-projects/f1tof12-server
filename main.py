@@ -3,12 +3,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from scripts.db.s3_backup import restore_from_s3
 from scripts.customer.api import router as customer_router
 from scripts.users.api import router as users_router
+from scripts.spoc.api import router as spoc_router
 
 app = FastAPI(title="F1toF12 API", debug=True)
 
 # Include routers
 app.include_router(customer_router)
 app.include_router(users_router)
+app.include_router(spoc_router)
 
 # Add CORS middleware
 app.add_middleware(
