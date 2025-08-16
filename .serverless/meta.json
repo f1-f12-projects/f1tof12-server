@@ -9,7 +9,20 @@
       "Globals": {
         "Function": {
           "Timeout": 30,
-          "Runtime": "python3.9"
+          "Runtime": "python3.12"
+        },
+        "HttpApi": {
+          "CorsConfiguration": {
+            "AllowOrigins": [
+              "*"
+            ],
+            "AllowHeaders": [
+              "*"
+            ],
+            "AllowMethods": [
+              "*"
+            ]
+          }
         }
       },
       "Resources": {
@@ -54,6 +67,13 @@
                   "Path": "/{proxy+}",
                   "Method": "ANY"
                 }
+              },
+              "RootEvent": {
+                "Type": "HttpApi",
+                "Properties": {
+                  "Path": "/",
+                  "Method": "ANY"
+                }
               }
             }
           }
@@ -72,7 +92,7 @@
       "message": "You must sign in or use a license key with Serverless Framework V.4 and later versions. Please use \"serverless login\".",
       "stack": "Error: You must sign in or use a license key with Serverless Framework V.4 and later versions. Please use \"serverless login\".\n    at Authentication.getAuthenticatedData (file:///Users/koteswarvijay/.serverless/releases/4.18.0/package/dist/sf-core.js:806:10899)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at async Authentication.authenticate (file:///Users/koteswarvijay/.serverless/releases/4.18.0/package/dist/sf-core.js:808:22245)\n    at async CfnRunner.resolveVariablesAndAuthenticate (file:///Users/koteswarvijay/.serverless/releases/4.18.0/package/dist/sf-core.js:812:2379)\n    at async CfnRunner.run (file:///Users/koteswarvijay/.serverless/releases/4.18.0/package/dist/sf-core.js:1129:3015)\n    at async route (file:///Users/koteswarvijay/.serverless/releases/4.18.0/package/dist/sf-core.js:1603:2878)\n    at async Object.run (file:///Users/koteswarvijay/.serverless/releases/4.18.0/package/dist/sf-core.js:1604:3661)\n    at async run2 (file:///Users/koteswarvijay/.serverless/releases/4.18.0/package/dist/sf-core.js:1604:4815)"
     },
-    "serviceRawFile": "AWSTemplateFormatVersion: '2010-09-09'\nTransform: AWS::Serverless-2016-10-31\n\nGlobals:\n  Function:\n    Timeout: 30\n    Runtime: python3.9\n\nResources:\n  F1toF12API:\n    Type: AWS::Serverless::Function\n    Properties:\n      CodeUri: .\n      Handler: lambda_handler.handler\n      Environment:\n        Variables:\n          S3_BUCKET: f1tof12-db-backup\n          JWT_SECRET_KEY: \"your-generated-secure-key-here\"\n      Policies:\n        - Version: \"2012-10-17\"\n          Statement:\n            - Effect: Allow\n              Action:\n                - s3:GetObject\n                - s3:PutObject\n                - s3:DeleteObject\n              Resource: \"arn:aws:s3:::f1tof12-db-backup/*\"\n            - Effect: Allow\n              Action:\n                - s3:ListBucket\n              Resource: \"arn:aws:s3:::f1tof12-db-backup\"\n      Events:\n        ApiEvent:\n          Type: HttpApi\n          Properties:\n            Path: /{proxy+}\n            Method: ANY\n\nOutputs:\n  ApiUrl:\n    Description: \"API Gateway endpoint URL\"\n    Value: !Sub \"https://${ServerlessHttpApi}.execute-api.${AWS::Region}.amazonaws.com/\"",
+    "serviceRawFile": "AWSTemplateFormatVersion: '2010-09-09'\nTransform: AWS::Serverless-2016-10-31\n\nGlobals:\n  Function:\n    Timeout: 30\n    Runtime: python3.12\n  HttpApi:\n    CorsConfiguration:\n      AllowOrigins:\n        - \"*\"\n      AllowHeaders:\n        - \"*\"\n      AllowMethods:\n        - \"*\"\n\nResources:\n  F1toF12API:\n    Type: AWS::Serverless::Function\n    Properties:\n      CodeUri: .\n      Handler: lambda_handler.handler\n      Environment:\n        Variables:\n          S3_BUCKET: f1tof12-db-backup\n          JWT_SECRET_KEY: \"your-generated-secure-key-here\"\n      Policies:\n        - Version: \"2012-10-17\"\n          Statement:\n            - Effect: Allow\n              Action:\n                - s3:GetObject\n                - s3:PutObject\n                - s3:DeleteObject\n              Resource: \"arn:aws:s3:::f1tof12-db-backup/*\"\n            - Effect: Allow\n              Action:\n                - s3:ListBucket\n              Resource: \"arn:aws:s3:::f1tof12-db-backup\"\n      Events:\n        ApiEvent:\n          Type: HttpApi\n          Properties:\n            Path: /{proxy+}\n            Method: ANY\n        RootEvent:\n          Type: HttpApi\n          Properties:\n            Path: /\n            Method: ANY\n\nOutputs:\n  ApiUrl:\n    Description: \"API Gateway endpoint URL\"\n    Value: !Sub \"https://${ServerlessHttpApi}.execute-api.${AWS::Region}.amazonaws.com/\"",
     "command": [
       "deploy"
     ],

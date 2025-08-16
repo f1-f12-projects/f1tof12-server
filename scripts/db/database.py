@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, Column, Integer, String, DateTime, ForeignKey
+from sqlalchemy import create_engine, Column, Integer, String, DateTime, ForeignKey, Date
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 from datetime import datetime, timezone
@@ -38,6 +38,19 @@ class SPOC(Base):
     status = Column(String, default="active")
     created_date = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_date = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    
+    company = relationship("Company")
+
+class Invoice(Base):
+    __tablename__ = "invoices"
+    id = Column(Integer, primary_key=True, index=True)
+    invoice_number = Column(String, unique=True, index=True)
+    reference = Column(String)
+    company_id = Column(Integer, ForeignKey("companies.id"))
+    raised_date = Column(Date)
+    due_date = Column(Date)
+    status = Column(String, default="pending")
+    remarks = Column(String)
     
     company = relationship("Company")
 

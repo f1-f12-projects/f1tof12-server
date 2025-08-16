@@ -4,6 +4,7 @@ from scripts.db.s3_backup import restore_from_s3
 from scripts.customer.api import router as customer_router
 from scripts.users.api import router as users_router
 from scripts.spoc.api import router as spoc_router
+from scripts.invoices.api import router as invoice_router
 
 app = FastAPI(title="F1toF12 API", debug=True)
 
@@ -11,6 +12,7 @@ app = FastAPI(title="F1toF12 API", debug=True)
 app.include_router(customer_router)
 app.include_router(users_router)
 app.include_router(spoc_router)
+app.include_router(invoice_router)
 
 # Add CORS middleware
 app.add_middleware(
@@ -30,7 +32,7 @@ async def startup_event():
 
 @app.get("/")
 def root():
-    return {"message": "F1toF12 API", "endpoints": ["/register", "/login", "/health", "/users", "/companies", "/companies/{company_id}/status"]}
+    return {"message": "F1toF12 API", "endpoints": ["/register", "/login", "/health", "/users", "/companies", "/companies/{company_id}/status", "/invoices"]}
 
 @app.get("/health")
 def health_check():
