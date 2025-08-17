@@ -1,10 +1,14 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, status, Depends
 from pydantic import BaseModel, field_validator
 from boto3 import client as boto3_client
 from os import getenv
 from hmac import new as hmac_new
 from hashlib import sha256
 from base64 import b64encode
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from auth import verify_cognito_token
+
+security = HTTPBearer()
 
 router = APIRouter()
 
@@ -79,10 +83,20 @@ class UserLogin(BaseModel):
 class Token(BaseModel):
     access_token: str
     token_type: str
+    status_code: int
 
-@router.post("/login", response_model=Token)
+@router.post("/login", response_model=Token, status_code=status.HTTP_200_OK)
 def login(user: UserLogin):
     print(f"Login request for username: {user.username}")
     cognito_token = authenticate_with_cognito(user.username, user.password)
     print("Login successful, returning token")
-    return {"access_token": cognito_token, "token_type": "bearer"}
+    return {"access_token": cognito_token, "token_type": "bearer", "status_code": 200}
+
+@router.post("/logout")
+def logout(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    client = boto3_client('cognito-idp', region_name='us-east-1')
+    try:
+        client.global_sign_out(AccessToken=credentials.credentials)
+    except Exception:
+        pass  # Token may already be invalid
+    return {"message": "Logged out successfully"}

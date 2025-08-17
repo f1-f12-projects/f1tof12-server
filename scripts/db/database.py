@@ -4,9 +4,22 @@ from sqlalchemy.orm import sessionmaker, relationship
 from datetime import datetime, timezone
 from boto3 import client
 import os
+import shutil
 
 DB_FILE_NAME = os.getenv('DB_FILE_NAME', 'f1tof12.db')
-DATABASE_URL = os.getenv('DATABASE_URL', f"sqlite:///{DB_FILE_NAME}")
+TMP_DB_PATH = os.path.join(os.getcwd(), DB_FILE_NAME)
+DATABASE_URL = f"sqlite:///{TMP_DB_PATH}"
+
+# Ensure writable database location
+os.makedirs(os.path.dirname(TMP_DB_PATH), exist_ok=True)
+if not os.path.exists(TMP_DB_PATH):
+    if os.path.exists(DB_FILE_NAME):
+        shutil.copy2(DB_FILE_NAME, TMP_DB_PATH)
+    else:
+        open(TMP_DB_PATH, 'w').close()
+os.chmod(TMP_DB_PATH, 0o666)
+os.chmod(os.path.dirname(TMP_DB_PATH), 0o777)
+
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
@@ -71,7 +84,7 @@ DB_FILE = DB_FILE_NAME
 def backup_to_s3():
     """Upload SQLite database to S3"""
     try:
-        s3_client.upload_file(DB_FILE, S3_BUCKET, DB_FILE_NAME)
+        s3_client.upload_file(TMP_DB_PATH, S3_BUCKET, DB_FILE_NAME)
         return True
     except Exception as e:
         print(f"S3 backup failed: {e}")
@@ -80,7 +93,7 @@ def backup_to_s3():
 def restore_from_s3():
     """Download SQLite database from S3"""
     try:
-        s3_client.download_file(S3_BUCKET, DB_FILE_NAME, DB_FILE)
+        s3_client.download_file(S3_BUCKET, DB_FILE_NAME, TMP_DB_PATH)
         return True
     except Exception as e:
         print(f"S3 restore failed: {e}")
