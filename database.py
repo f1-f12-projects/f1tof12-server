@@ -1,11 +1,12 @@
 from sqlalchemy import create_engine, Column, Integer, String
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
-import boto3
+from boto3 import client
 import os
+import tempfile
 
-DB_FILE_NAME = 'f1tof12.db'
-DATABASE_URL = "sqlite:////tmp/" + DB_FILE_NAME
+DB_FILE_NAME = os.getenv('DB_FILE_NAME', 'f1tof12.db')
+DATABASE_URL = os.getenv('DATABASE_URL', f"sqlite:///{os.path.join(tempfile.gettempdir(), DB_FILE_NAME)}")
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
@@ -26,9 +27,9 @@ def get_db():
 Base.metadata.create_all(bind=engine)
 
 # AWS S3 integration
-s3_client = boto3.client('s3')
+s3_client = client('s3')
 S3_BUCKET = os.getenv('S3_BUCKET', 'f1tof12-db-backup')
-DB_FILE = '/tmp/' + DB_FILE_NAME
+DB_FILE = os.getenv('DB_FILE_PATH', os.path.join(tempfile.gettempdir(), DB_FILE_NAME))
 
 def backup_to_s3():
     """Upload SQLite database to S3"""

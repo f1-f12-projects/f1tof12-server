@@ -1,6 +1,11 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 
+Parameters:
+  JWTSecretParameter:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /f1tof12/jwt-secret
+
 Globals:
   Function:
     Timeout: 30
@@ -8,11 +13,17 @@ Globals:
   HttpApi:
     CorsConfiguration:
       AllowOrigins:
-        - "*"
+        - "http://localhost:3000"
+        - "https://f1tof12.com"
+        - "https://zhijjc4ru2.execute-api.ap-south-1.amazonaws.com/"
       AllowHeaders:
-        - "*"
+        - "Content-Type"
+        - "Authorization"
       AllowMethods:
-        - "*"
+        - "GET"
+        - "POST"
+        - "PUT"
+        - "DELETE"
 
 Resources:
   F1toF12API:
@@ -23,7 +34,7 @@ Resources:
       Environment:
         Variables:
           S3_BUCKET: f1tof12-db-backup
-          JWT_SECRET_KEY: "your-generated-secure-key-here"
+          JWT_SECRET_KEY: !Ref JWTSecretParameter
       Policies:
         - Version: "2012-10-17"
           Statement:

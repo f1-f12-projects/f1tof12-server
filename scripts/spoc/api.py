@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, field_validator
-from scripts.db.database import get_db, SPOC, Company
+from scripts.db.database import get_db, SPOC, Company, User
+from auth import verify_cognito_token
 
 router = APIRouter()
 
@@ -27,7 +28,7 @@ class SPOCUpdate(BaseModel):
         return v
 
 @router.post("/spoc/add")
-def add_spoc(spoc: SPOCCreate, db: Session = Depends(get_db)):
+def add_spoc(spoc: SPOCCreate, db: Session = Depends(get_db), current_user: User = Depends(verify_cognito_token)):
     company = db.query(Company).filter(Company.id == spoc.company_id).first()
     if not company:
         raise HTTPException(status_code=404, detail="Company not found")
@@ -45,12 +46,12 @@ def add_spoc(spoc: SPOCCreate, db: Session = Depends(get_db)):
     return {"message": "SPOC added successfully"}
 
 @router.get("/spoc/list")
-def list_spocs(db: Session = Depends(get_db)):
+def list_spocs(db: Session = Depends(get_db), current_user: User = Depends(verify_cognito_token)):
     spocs = db.query(SPOC).all()
     return [{"id": spoc.id, "company_id": spoc.company_id, "name": spoc.name, "phone": spoc.phone, "email_id": spoc.email_id, "location": spoc.location, "status": spoc.status, "created_date": spoc.created_date, "updated_date": spoc.updated_date} for spoc in spocs]
 
 @router.put("/spoc/{spoc_id}/update")
-def update_spoc(spoc_id: int, spoc_update: SPOCUpdate, db: Session = Depends(get_db)):
+def update_spoc(spoc_id: int, spoc_update: SPOCUpdate, db: Session = Depends(get_db), current_user: User = Depends(verify_cognito_token)):
     update_data = {}
     if spoc_update.name is not None:
         update_data[SPOC.name] = spoc_update.name

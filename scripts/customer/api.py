@@ -2,7 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from pydantic import BaseModel, field_validator
-from scripts.db.database import get_db, Company, SPOC
+from scripts.db.database import get_db, Company, User
+from auth import verify_cognito_token
 
 router = APIRouter()
 
@@ -24,7 +25,7 @@ class CompanyUpdate(BaseModel):
         return v
 
 @router.post("/customer/register", response_model=dict)
-def register(company: CompanyCreate, db: Session = Depends(get_db)):
+def register(company: CompanyCreate, db: Session = Depends(get_db), current_user: User = Depends(verify_cognito_token)):
     db_company = db.query(Company).filter(func.lower(Company.name) == func.lower(company.name)).first()
     if db_company:
         raise HTTPException(status_code=409, detail="Company already registered")
@@ -35,12 +36,12 @@ def register(company: CompanyCreate, db: Session = Depends(get_db)):
     return {"message": "Company registered successfully"}
 
 @router.get("/customer/list")
-def list_companies(db: Session = Depends(get_db)):
+def list_companies(db: Session = Depends(get_db), current_user: User = Depends(verify_cognito_token)):
     companies = db.query(Company).all()
     return [{"id": company.id, "name": company.name, "spoc": company.spoc, "email_id": company.email_id, "status": company.status, "created_date": company.created_date, "updated_date": company.updated_date} for company in companies]
 
 @router.put("/customer/{company_id}/update")
-def update_company(company_id: int, company_update: CompanyUpdate, db: Session = Depends(get_db)):
+def update_company(company_id: int, company_update: CompanyUpdate, db: Session = Depends(get_db), current_user: User = Depends(verify_cognito_token)):
     update_data = {}
     if company_update.spoc is not None:
         update_data[Company.spoc] = company_update.spoc
