@@ -27,7 +27,7 @@ def get_cognito_config():
     try:
         user_pool_id = ssm.get_parameter(Name='/f1tof12/cognito/user-pool-id')['Parameter']['Value']
         client_id = ssm.get_parameter(Name='/f1tof12/cognito/client-id')['Parameter']['Value']
-        client_secret = ssm.get_parameter(Name='/f1tof12/jwt-secret', WithDecryption=True)['Parameter']['Value']
+        client_secret = ssm.get_parameter(Name='/f1tof12/cognito/client-secret', WithDecryption=True)['Parameter']['Value']
         return user_pool_id, client_id, client_secret
     except ssm.exceptions.ParameterNotFound as e:
         print(f"SSM Parameter not found: {e}")

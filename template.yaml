@@ -2,9 +2,12 @@ AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 
 Parameters:
-  JWTSecretParameter:
+  CognitoUserPoolId:
     Type: AWS::SSM::Parameter::Value<String>
-    Default: /f1tof12/jwt-secret
+    Default: /f1tof12/cognito/user-pool-id
+  CognitoClientId:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /f1tof12/cognito/client-id
 
 Globals:
   Function:
@@ -34,7 +37,8 @@ Resources:
       Environment:
         Variables:
           S3_BUCKET: f1tof12-db-backup
-          JWT_SECRET_KEY: !Ref JWTSecretParameter
+          COGNITO_USER_POOL_ID: !Ref CognitoUserPoolId
+          COGNITO_CLIENT_ID: !Ref CognitoClientId
       Policies:
         - Version: "2012-10-17"
           Statement:
@@ -48,6 +52,14 @@ Resources:
               Action:
                 - s3:ListBucket
               Resource: "arn:aws:s3:::f1tof12-db-backup"
+            - Effect: Allow
+              Action:
+                - cognito-idp:GetUser
+              Resource: "*"
+            - Effect: Allow
+              Action:
+                - ssm:GetParameter
+              Resource: "arn:aws:ssm:ap-south-1:*:parameter/f1tof12/cognito/*"
       Events:
         ApiEvent:
           Type: HttpApi
