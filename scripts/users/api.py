@@ -61,11 +61,18 @@ def authenticate_with_cognito(username: str, password: str):
             },
             ClientId=CLIENT_ID
         )
+        
+        # Check if password change is required
+        if 'ChallengeName' in response and response['ChallengeName'] == 'NEW_PASSWORD_REQUIRED':
+            raise HTTPException(status_code=400, detail="Password change required.")
+        
         print("Cognito auth successful")
         return response['AuthenticationResult']
     except client.exceptions.NotAuthorizedException as e:
         print(f"Cognito auth failed - invalid credentials: {e}")
         raise HTTPException(status_code=401, detail="Invalid credentials")
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"Cognito error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Cognito error: {str(e)}")
@@ -104,6 +111,14 @@ class UserCreate(BaseModel):
     given_name: Optional[str] = None
     family_name: Optional[str] = None
     phone_number: Optional[str] = None
+
+class PasswordReset(BaseModel):
+    new_temporary_password: str
+
+class PasswordChange(BaseModel):
+    username: str
+    temporary_password: str
+    new_password: str
 
 @router.post("/login", response_model=Token, status_code=status.HTTP_200_OK)
 def login(user: UserLogin):
@@ -253,3 +268,58 @@ def create_user(user_data: UserCreate, username: str = Depends(verify_cognito_to
         return {"message": f"User {user_data.username} created successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to create user: {str(e)}")
+
+@router.post("/user/{target_username}/reset-password")
+def reset_password(target_username: str, password_data: PasswordReset, username: str = Depends(verify_cognito_token)):
+    USER_POOL_ID, _, _ = get_cognito_config()
+    client = boto3_client('cognito-idp', region_name=AWS_REGION)
+    
+    try:
+        client.admin_set_user_password(
+            UserPoolId=USER_POOL_ID,
+            Username=target_username,
+            Password=password_data.new_temporary_password,
+            Permanent=False
+        )
+        return {"message": f"Temporary password reset for user {target_username}"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to reset password: {str(e)}")
+
+@router.post("/user/change-password")
+def change_password(password_data: PasswordChange):
+    _, CLIENT_ID, CLIENT_SECRET = get_cognito_config()
+    client = boto3_client('cognito-idp', region_name=AWS_REGION)
+    
+    secret_hash = calculate_secret_hash(password_data.username, CLIENT_ID, CLIENT_SECRET)
+    
+    try:
+        # First authenticate with temporary password
+        auth_response = client.initiate_auth(
+            AuthFlow='USER_PASSWORD_AUTH',
+            AuthParameters={
+                'USERNAME': password_data.username,
+                'PASSWORD': password_data.temporary_password,
+                'SECRET_HASH': secret_hash
+            },
+            ClientId=CLIENT_ID
+        )
+        
+        # Handle NEW_PASSWORD_REQUIRED challenge
+        if 'ChallengeName' in auth_response and auth_response['ChallengeName'] == 'NEW_PASSWORD_REQUIRED':
+            client.respond_to_auth_challenge(
+                ClientId=CLIENT_ID,
+                ChallengeName='NEW_PASSWORD_REQUIRED',
+                Session=auth_response['Session'],
+                ChallengeResponses={
+                    'USERNAME': password_data.username,
+                    'NEW_PASSWORD': password_data.new_password,
+                    'SECRET_HASH': secret_hash
+                }
+            )
+            return {"message": "Password changed successfully"}
+        else:
+            raise HTTPException(status_code=400, detail="Password change not required")
+    except client.exceptions.InvalidPasswordException as e:
+        raise HTTPException(status_code=400, detail=f"Password does not meet policy requirements: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to change password: {str(e)}")
