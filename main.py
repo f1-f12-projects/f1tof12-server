@@ -5,6 +5,9 @@ from scripts.customer.api import router as customer_router
 from scripts.users.api import router as users_router
 from scripts.spoc.api import router as spoc_router
 from scripts.invoices.api import router as invoice_router
+import logging
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="F1toF12 API", debug=True)
 
@@ -28,7 +31,7 @@ async def startup_event():
     try:
         restore_from_s3()  # Load database from S3 on startup
     except Exception as e:
-        print(f"S3 restore failed on startup: {e}")
+        logger.error(f"S3 restore failed on startup: {e}")
 
 @app.get("/")
 def root():

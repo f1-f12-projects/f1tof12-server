@@ -1,5 +1,8 @@
 import boto3
 import os
+import logging
+
+logger = logging.getLogger(__name__)
 
 # AWS S3 integration
 s3_client = boto3.client('s3')
@@ -13,7 +16,7 @@ def backup_to_s3():
         s3_client.upload_file(DB_FILE, S3_BUCKET, DB_FILE_NAME)
         return True
     except Exception as e:
-        print(f"S3 backup failed: {e}")
+        logger.error(f"S3 backup failed: {e}")
         return False
 
 def restore_from_s3():
@@ -22,5 +25,5 @@ def restore_from_s3():
         s3_client.download_file(S3_BUCKET, DB_FILE_NAME, DB_FILE)
         return True
     except Exception as e:
-        print(f"S3 restore failed: {e}")
+        logger.error(f"S3 restore failed: {e}")
         return False

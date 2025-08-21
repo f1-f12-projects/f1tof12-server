@@ -5,6 +5,7 @@ from pydantic import BaseModel
 from datetime import date
 from typing import Optional
 from auth import verify_cognito_token
+from scripts.utils.response import success_response, handle_error
 
 router = APIRouter(prefix="/invoices", tags=["invoices"])
 
@@ -30,34 +31,60 @@ class InvoiceResponse(BaseModel):
     class Config:
         from_attributes = True
 
-@router.post("/", response_model=InvoiceResponse)
+@router.post("/")
 def create_invoice(invoice: InvoiceCreate, current_user: User = Depends(verify_cognito_token), db: Session = Depends(get_db)):
-    db_invoice = Invoice(**invoice.dict())
-    db.add(db_invoice)
-    db.commit()
-    db.refresh(db_invoice)
-    return db_invoice
+    try:
+        db_invoice = Invoice(**invoice.dict())
+        db.add(db_invoice)
+        db.commit()
+        db.refresh(db_invoice)
+        return success_response(db_invoice.__dict__, "Invoice created successfully")
+    except Exception as e:
+        handle_error(e, "create invoice")
 
-@router.get("/", response_model=list[InvoiceResponse])
+@router.get("/")
 def get_invoices(current_user: User = Depends(verify_cognito_token), db: Session = Depends(get_db)):
-    return db.query(Invoice).all()
+    try:
+        invoices = db.query(Invoice).all()
+        invoices_data = [invoice.__dict__ for invoice in invoices]
+        return success_response(invoices_data, "Invoices retrieved successfully")
+    except Exception as e:
+        handle_error(e, "get invoices")
 
-@router.get("/{invoice_id}", response_model=InvoiceResponse)
+@router.get("/{invoice_id}")
 def get_invoice(invoice_id: int, current_user: User = Depends(verify_cognito_token), db: Session = Depends(get_db)):
-    invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
-    if not invoice:
-        raise HTTPException(status_code=404, detail="Invoice not found")
-    return invoice
+    try:
+        invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
+        if not invoice:
+            raise HTTPException(status_code=404, detail={
+                "error": "INVOICE_NOT_FOUND",
+                "message": "Invoice not found",
+                "code": "INV_404"
+            })
+        return success_response(invoice.__dict__, "Invoice retrieved successfully")
+    except HTTPException:
+        raise
+    except Exception as e:
+        handle_error(e, "get invoice")
 
-@router.put("/{invoice_id}", response_model=InvoiceResponse)
+@router.put("/{invoice_id}")
 def update_invoice(invoice_id: int, invoice: InvoiceCreate, current_user: User = Depends(verify_cognito_token), db: Session = Depends(get_db)):
-    db_invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
-    if not db_invoice:
-        raise HTTPException(status_code=404, detail="Invoice not found")
-    
-    for key, value in invoice.dict().items():
-        setattr(db_invoice, key, value)
-    
-    db.commit()
-    db.refresh(db_invoice)
-    return db_invoice
+    try:
+        db_invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
+        if not db_invoice:
+            raise HTTPException(status_code=404, detail={
+                "error": "INVOICE_NOT_FOUND",
+                "message": "Invoice not found",
+                "code": "INV_404"
+            })
+        
+        for key, value in invoice.dict().items():
+            setattr(db_invoice, key, value)
+        
+        db.commit()
+        db.refresh(db_invoice)
+        return success_response(db_invoice.__dict__, "Invoice updated successfully")
+    except HTTPException:
+        raise
+    except Exception as e:
+        handle_error(e, "update invoice")

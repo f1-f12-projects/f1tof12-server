@@ -8,6 +8,10 @@ from base64 import b64encode
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from auth import verify_cognito_token, AWS_REGION
 from typing import Optional
+from scripts.utils.response import success_response, handle_error
+import logging
+
+logger = logging.getLogger(__name__)
 
 security = HTTPBearer()
 
@@ -30,28 +34,30 @@ def get_cognito_config():
     # Fallback to Parameter Store
     ssm = boto3_client('ssm')
     try:
-        user_pool_id = ssm.get_parameter(Name='/f1tof12/cognito/user-pool-id')['Parameter']['Value']
-        client_id = ssm.get_parameter(Name='/f1tof12/cognito/client-id')['Parameter']['Value']
-        client_secret = ssm.get_parameter(Name='/f1tof12/cognito/client-secret', WithDecryption=True)['Parameter']['Value']
-        return user_pool_id, client_id, client_secret
+        response = ssm.get_parameters(
+            Names=['/f1tof12/cognito/user-pool-id', '/f1tof12/cognito/client-id', '/f1tof12/cognito/client-secret'],
+            WithDecryption=True
+        )
+        params = {p['Name']: p['Value'] for p in response['Parameters']}
+        return params['/f1tof12/cognito/user-pool-id'], params['/f1tof12/cognito/client-id'], params['/f1tof12/cognito/client-secret']
     except ssm.exceptions.ParameterNotFound as e:
-        print(f"SSM Parameter not found: {e}")
+        logger.error(f"SSM Parameter not found: {e}")
         raise HTTPException(status_code=500, detail="Cognito configuration missing")
     except Exception as e:
-        print(f"SSM error: {e}")
+        logger.error(f"SSM error: {e}")
         raise HTTPException(status_code=500, detail="Failed to retrieve Cognito credentials")
 
 def authenticate_with_cognito(username: str, password: str):
     USER_POOL_ID, CLIENT_ID, CLIENT_SECRET = get_cognito_config()
     
     client = boto3_client('cognito-idp', region_name=AWS_REGION)
-    print(f"Created Cognito client for {AWS_REGION} region")
+    logger.debug(f"Created Cognito client for {AWS_REGION} region")
     
     secret_hash = calculate_secret_hash(username, CLIENT_ID, CLIENT_SECRET)
-    print("Calculated SECRET_HASH")
+    logger.debug("Calculated SECRET_HASH")
     
     try:
-        print("Initiating auth with Cognito")
+        logger.info("Initiating auth with Cognito")
         response = client.initiate_auth(
             AuthFlow='USER_PASSWORD_AUTH',
             AuthParameters={
@@ -66,15 +72,15 @@ def authenticate_with_cognito(username: str, password: str):
         if 'ChallengeName' in response and response['ChallengeName'] == 'NEW_PASSWORD_REQUIRED':
             raise HTTPException(status_code=400, detail="Password change required.")
         
-        print("Cognito auth successful")
+        logger.info("Cognito auth successful")
         return response['AuthenticationResult']
     except client.exceptions.NotAuthorizedException as e:
-        print(f"Cognito auth failed - invalid credentials: {e}")
+        logger.warning(f"Cognito auth failed - invalid credentials: {e}")
         raise HTTPException(status_code=401, detail="Invalid credentials")
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Cognito error: {str(e)}")
+        logger.error(f"Cognito error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Cognito error: {str(e)}")
 
 class UserLogin(BaseModel):
@@ -122,17 +128,15 @@ class PasswordChange(BaseModel):
 
 @router.post("/login", response_model=Token, status_code=status.HTTP_200_OK)
 def login(user: UserLogin):
-    print(f"Login request for username: {user.username}")
+    logger.info(f"Login request for username: {user.username}")
     auth_result = authenticate_with_cognito(user.username, user.password)
-    print("Login successful, returning tokens")
-    return {
+    return success_response({
         "access_token": auth_result['AccessToken'],
         "refresh_token": auth_result['RefreshToken'],
-        "token_type": "bearer",
-        "status_code": 200
-    }
+        "token_type": "bearer"
+    }, "Login successful")
 
-@router.post("/refresh")
+@router.post("/refresh-token")
 def refresh_token(refresh_data: RefreshToken):
     _, CLIENT_ID, CLIENT_SECRET = get_cognito_config()
     client = boto3_client('cognito-idp', region_name=AWS_REGION)
@@ -146,12 +150,12 @@ def refresh_token(refresh_data: RefreshToken):
             },
             ClientId=CLIENT_ID
         )
-        return {
+        return success_response({
             "access_token": response['AuthenticationResult']['AccessToken'],
             "token_type": "bearer"
-        }
+        }, "Token refreshed successfully")
     except Exception as e:
-        raise HTTPException(status_code=401, detail="Invalid refresh token")
+        handle_error(e, "refresh token")
 
 @router.post("/logout")
 def logout(credentials: HTTPAuthorizationCredentials = Depends(security)):
@@ -160,7 +164,7 @@ def logout(credentials: HTTPAuthorizationCredentials = Depends(security)):
         client.global_sign_out(AccessToken=credentials.credentials)
     except Exception:
         pass  # Token may already be invalid
-    return {"message": "Logged out successfully"}
+    return success_response(message="Logged out successfully")
 
 @router.get("/users")
 def get_cognito_users(username: str = Depends(verify_cognito_token)):
@@ -178,9 +182,9 @@ def get_cognito_users(username: str = Depends(verify_cognito_token)):
             "created": user['UserCreateDate'].isoformat(),
             "enabled": user['Enabled']
         } for user in response['Users']]
-        return {"users": users}
+        return success_response(users, "Users retrieved successfully")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch users: {str(e)}")
+        handle_error(e, "fetch users")
 
 @router.put("/user/{target_username}/update")
 def update_user(target_username: str, user_update: UserUpdate, username: str = Depends(verify_cognito_token)):
@@ -209,10 +213,9 @@ def update_user(target_username: str, user_update: UserUpdate, username: str = D
         # Update user status if provided
         if user_update.status:
             if user_update.status.upper() == 'FORCE_CHANGE_PASSWORD':
-                client.admin_set_user_password(
+                client.admin_reset_user_password(
                     UserPoolId=USER_POOL_ID,
-                    Username=target_username,
-                    Temporary=True
+                    Username=target_username
                 )
             elif user_update.status.upper() == 'CONFIRMED':
                 client.admin_confirm_sign_up(
@@ -220,9 +223,9 @@ def update_user(target_username: str, user_update: UserUpdate, username: str = D
                     Username=target_username
                 )
         
-        return {"message": f"User {target_username} updated successfully"}
+        return success_response(message=f"User {target_username} updated successfully")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to update user: {str(e)}")
+        handle_error(e, "update user")
 
 @router.post("/user/{target_username}/enable")
 def enable_user(target_username: str, username: str = Depends(verify_cognito_token)):
@@ -230,9 +233,9 @@ def enable_user(target_username: str, username: str = Depends(verify_cognito_tok
     client = boto3_client('cognito-idp', region_name=AWS_REGION)
     try:
         client.admin_enable_user(UserPoolId=USER_POOL_ID, Username=target_username)
-        return {"message": f"User {target_username} enabled successfully"}
+        return success_response(message=f"User {target_username} enabled successfully")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to enable user: {str(e)}")
+        handle_error(e, "enable user")
 
 @router.post("/user/{target_username}/disable")
 def disable_user(target_username: str, username: str = Depends(verify_cognito_token)):
@@ -240,9 +243,9 @@ def disable_user(target_username: str, username: str = Depends(verify_cognito_to
     client = boto3_client('cognito-idp', region_name=AWS_REGION)
     try:
         client.admin_disable_user(UserPoolId=USER_POOL_ID, Username=target_username)
-        return {"message": f"User {target_username} disabled successfully"}
+        return success_response(message=f"User {target_username} disabled successfully")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to disable user: {str(e)}")
+        handle_error(e, "disable user")
 
 @router.post("/user/create")
 def create_user(user_data: UserCreate, username: str = Depends(verify_cognito_token)):
@@ -265,9 +268,9 @@ def create_user(user_data: UserCreate, username: str = Depends(verify_cognito_to
             TemporaryPassword=user_data.temporary_password,
             MessageAction='SUPPRESS'
         )
-        return {"message": f"User {user_data.username} created successfully"}
+        return success_response(message=f"User {user_data.username} created successfully")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to create user: {str(e)}")
+        handle_error(e, "create user")
 
 @router.post("/user/{target_username}/reset-password")
 def reset_password(target_username: str, password_data: PasswordReset, username: str = Depends(verify_cognito_token)):
@@ -281,9 +284,9 @@ def reset_password(target_username: str, password_data: PasswordReset, username:
             Password=password_data.new_temporary_password,
             Permanent=False
         )
-        return {"message": f"Temporary password reset for user {target_username}"}
+        return success_response(message=f"Temporary password reset for user {target_username}")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to reset password: {str(e)}")
+        handle_error(e, "reset password")
 
 @router.post("/user/change-password")
 def change_password(password_data: PasswordChange):
@@ -316,10 +319,12 @@ def change_password(password_data: PasswordChange):
                     'SECRET_HASH': secret_hash
                 }
             )
-            return {"message": "Password changed successfully"}
+            return success_response(message="Password changed successfully")
         else:
-            raise HTTPException(status_code=400, detail="Password change not required")
-    except client.exceptions.InvalidPasswordException as e:
-        raise HTTPException(status_code=400, detail=f"Password does not meet policy requirements: {str(e)}")
+            raise HTTPException(status_code=400, detail={
+                "error": "PASSWORD_CHANGE_NOT_REQUIRED",
+                "message": "Password change not required",
+                "code": "PWD_400"
+            })
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to change password: {str(e)}")
+        handle_error(e, "change password")
