@@ -126,7 +126,7 @@ class PasswordChange(BaseModel):
     temporary_password: str
     new_password: str
 
-@router.post("/login", response_model=Token, status_code=status.HTTP_200_OK)
+@router.post("/login", status_code=status.HTTP_200_OK)
 def login(user: UserLogin):
     logger.info(f"Login request for username: {user.username}")
     auth_result = authenticate_with_cognito(user.username, user.password)

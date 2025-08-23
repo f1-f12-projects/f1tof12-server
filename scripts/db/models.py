@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Date
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Date, Float
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
@@ -41,6 +41,8 @@ class Invoice(Base):
     invoice_number = Column(String, unique=True, index=True)
     reference = Column(String)
     company_id = Column(Integer, ForeignKey("companies.id"))
+    po_number = Column(String)
+    amount = Column(Float)
     raised_date = Column(Date)
     due_date = Column(Date)
     status = Column(String, default="pending")

@@ -13,6 +13,8 @@ class InvoiceCreate(BaseModel):
     invoice_number: str
     reference: Optional[str] = None
     company_id: int
+    po_number: Optional[str] = None
+    amount: float
     raised_date: date
     due_date: date
     status: str = "pending"
@@ -23,6 +25,8 @@ class InvoiceResponse(BaseModel):
     invoice_number: str
     reference: Optional[str]
     company_id: int
+    po_number: Optional[str]
+    amount: float
     raised_date: date
     due_date: date
     status: str
@@ -31,7 +35,7 @@ class InvoiceResponse(BaseModel):
     class Config:
         from_attributes = True
 
-@router.post("/")
+@router.post("/create")
 def create_invoice(invoice: InvoiceCreate, current_user: User = Depends(verify_cognito_token), db: Session = Depends(get_db)):
     try:
         db_invoice = Invoice(**invoice.dict())
@@ -42,7 +46,7 @@ def create_invoice(invoice: InvoiceCreate, current_user: User = Depends(verify_c
     except Exception as e:
         handle_error(e, "create invoice")
 
-@router.get("/")
+@router.get("/list")
 def get_invoices(current_user: User = Depends(verify_cognito_token), db: Session = Depends(get_db)):
     try:
         invoices = db.query(Invoice).all()
@@ -51,7 +55,7 @@ def get_invoices(current_user: User = Depends(verify_cognito_token), db: Session
     except Exception as e:
         handle_error(e, "get invoices")
 
-@router.get("/{invoice_id}")
+@router.get("/{invoice_id}/fetch")
 def get_invoice(invoice_id: int, current_user: User = Depends(verify_cognito_token), db: Session = Depends(get_db)):
     try:
         invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
@@ -67,7 +71,7 @@ def get_invoice(invoice_id: int, current_user: User = Depends(verify_cognito_tok
     except Exception as e:
         handle_error(e, "get invoice")
 
-@router.put("/{invoice_id}")
+@router.put("/{invoice_id}/update")
 def update_invoice(invoice_id: int, invoice: InvoiceCreate, current_user: User = Depends(verify_cognito_token), db: Session = Depends(get_db)):
     try:
         db_invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
