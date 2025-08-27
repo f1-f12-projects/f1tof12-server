@@ -2,7 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from pydantic import BaseModel, field_validator
-from scripts.db.database import get_db, Company, User
+from scripts.db.database import Company, User
+from scripts.db.session import get_db_with_backup
 from auth import verify_cognito_token
 from scripts.utils.response import success_response, handle_error
 import logging
@@ -29,7 +30,7 @@ class CompanyUpdate(BaseModel):
         return v
 
 @router.post("/customer/register", response_model=dict)
-def register(company: CompanyCreate, db: Session = Depends(get_db), current_user: User = Depends(verify_cognito_token)):
+def register(company: CompanyCreate, db: Session = Depends(get_db_with_backup), current_user: User = Depends(verify_cognito_token)):
     logger.info("Entering register method")
     try:
         db_company = db.query(Company).filter(func.lower(Company.name) == func.lower(company.name)).first()
@@ -53,7 +54,7 @@ def register(company: CompanyCreate, db: Session = Depends(get_db), current_user
         handle_error(e, "register company")
 
 @router.get("/customer/list")
-def list_companies(db: Session = Depends(get_db), current_user: User = Depends(verify_cognito_token)):
+def list_companies(db: Session = Depends(get_db_with_backup), current_user: User = Depends(verify_cognito_token)):
     logger.info("Entering list_companies method")
     try:
         companies = db.query(Company).all()
@@ -65,7 +66,7 @@ def list_companies(db: Session = Depends(get_db), current_user: User = Depends(v
         handle_error(e, "list companies")
 
 @router.put("/customer/{company_id}/update")
-def update_company(company_id: int, company_update: CompanyUpdate, db: Session = Depends(get_db), current_user: User = Depends(verify_cognito_token)):
+def update_company(company_id: int, company_update: CompanyUpdate, db: Session = Depends(get_db_with_backup), current_user: User = Depends(verify_cognito_token)):
     logger.info(f"Entering update_company method for company_id: {company_id}")
     try:
         update_data = {}
