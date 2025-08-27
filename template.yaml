@@ -51,15 +51,27 @@ Resources:
             - Effect: Allow
               Action:
                 - s3:ListBucket
+                - s3:HeadBucket
               Resource: "arn:aws:s3:::f1tof12-db-backup"
             - Effect: Allow
               Action:
                 - cognito-idp:GetUser
                 - cognito-idp:ListUsers
+                - cognito-idp:InitiateAuth
+                - cognito-idp:RespondToAuthChallenge
+                - cognito-idp:GlobalSignOut
+                - cognito-idp:AdminUpdateUserAttributes
+                - cognito-idp:AdminResetUserPassword
+                - cognito-idp:AdminConfirmSignUp
+                - cognito-idp:AdminEnableUser
+                - cognito-idp:AdminDisableUser
+                - cognito-idp:AdminCreateUser
+                - cognito-idp:AdminSetUserPassword
               Resource: "*"
             - Effect: Allow
               Action:
                 - ssm:GetParameter
+                - ssm:GetParameters
               Resource: "arn:aws:ssm:ap-south-1:*:parameter/f1tof12/cognito/*"
       Events:
         ApiEvent:
