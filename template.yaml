@@ -55,6 +55,7 @@ Resources:
             - Effect: Allow
               Action:
                 - cognito-idp:GetUser
+                - cognito-idp:ListUsers
               Resource: "*"
             - Effect: Allow
               Action:
