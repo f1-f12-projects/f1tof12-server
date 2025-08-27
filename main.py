@@ -5,6 +5,7 @@ from scripts.customer.api import router as customer_router
 from scripts.users.api import router as users_router
 from scripts.spoc.api import router as spoc_router
 from scripts.invoices.api import router as invoice_router
+from version import __version__
 import logging
 
 logger = logging.getLogger(__name__)
@@ -30,12 +31,19 @@ app.add_middleware(
 async def startup_event():
     try:
         restore_from_s3()  # Load database from S3 on startup
+    except (ConnectionError, TimeoutError) as e:
+        logger.warning(f"S3 restore failed on startup (non-critical): {e}")
     except Exception as e:
-        logger.error(f"S3 restore failed on startup: {e}")
+        logger.error(f"Critical startup failure: {e}")
+        raise
 
 @app.get("/")
 def root():
-    return {"message": "F1toF12 API", "endpoints": ["/register", "/login", "/health", "/users", "/companies", "/companies/{company_id}/status", "/invoices"]}
+    return {"message": "F1toF12 API", "version": __version__, "endpoints": ["/register", "/login", "/health", "/users", "/companies", "/companies/{company_id}/status", "/invoices"]}
+
+@app.get("/version")
+def get_version():
+    return {"version": __version__}
 
 @app.get("/health")
 def health_check():
