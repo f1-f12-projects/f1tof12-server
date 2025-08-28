@@ -27,9 +27,9 @@ def get_lambda_logs():
             )
             
             print("\n=== Recent Lambda Logs ===")
-            for event in logs_response['events'][-10:]:  # Last 10 events
+            for event in logs_response['events'][-50:]:  # Last 10 events
                 timestamp = datetime.fromtimestamp(event['timestamp'] / 1000)
-                print(f"[{timestamp}] {event['message']}")
+                print(f"[{timestamp}] {event['message']}", end="")
         else:
             print("No log groups found")
             

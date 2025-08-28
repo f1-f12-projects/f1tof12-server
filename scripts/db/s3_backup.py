@@ -14,6 +14,7 @@ def backup_to_s3():
     """Upload SQLite database to S3"""
     try:
         s3_client.upload_file(DB_FILE, S3_BUCKET, DB_FILE_NAME)
+        logger.info(f"S3 backup completed successfully: {DB_FILE_NAME}")
         return True
     except Exception as e:
         logger.error(f"S3 backup failed: {e}")
@@ -23,6 +24,7 @@ def restore_from_s3():
     """Download SQLite database from S3"""
     try:
         s3_client.download_file(S3_BUCKET, DB_FILE_NAME, DB_FILE)
+        logger.info(f"S3 restore completed successfully: {DB_FILE_NAME}")
         return True
     except Exception as e:
         logger.error(f"S3 restore failed: {e}")

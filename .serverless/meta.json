@@ -1,11 +1,21 @@
 {
   "/Users/koteswarvijay/Library/Mobile Documents/com~apple~CloudDocs/Software/f1tof12/f1tof12-server/template.yaml": {
-    "versionFramework": "4.18.0",
+    "versionFramework": "4.18.2",
     "servicePath": "/Users/koteswarvijay/Library/Mobile Documents/com~apple~CloudDocs/Software/f1tof12/f1tof12-server/template.yaml",
     "serviceConfigFileName": "template.yaml",
     "service": {
       "AWSTemplateFormatVersion": "2010-09-09",
       "Transform": "AWS::Serverless-2016-10-31",
+      "Parameters": {
+        "CognitoUserPoolId": {
+          "Type": "AWS::SSM::Parameter::Value<String>",
+          "Default": "/f1tof12/cognito/user-pool-id"
+        },
+        "CognitoClientId": {
+          "Type": "AWS::SSM::Parameter::Value<String>",
+          "Default": "/f1tof12/cognito/client-id"
+        }
+      },
       "Globals": {
         "Function": {
           "Timeout": 30,
@@ -14,13 +24,19 @@
         "HttpApi": {
           "CorsConfiguration": {
             "AllowOrigins": [
-              "*"
+              "http://localhost:3000",
+              "https://f1tof12.com",
+              "https://zhijjc4ru2.execute-api.ap-south-1.amazonaws.com/"
             ],
             "AllowHeaders": [
-              "*"
+              "Content-Type",
+              "Authorization"
             ],
             "AllowMethods": [
-              "*"
+              "GET",
+              "POST",
+              "PUT",
+              "DELETE"
             ]
           }
         }
@@ -34,7 +50,12 @@
             "Environment": {
               "Variables": {
                 "S3_BUCKET": "f1tof12-db-backup",
-                "JWT_SECRET_KEY": "<REDACTED>"
+                "COGNITO_USER_POOL_ID": {
+                  "Ref": "CognitoUserPoolId"
+                },
+                "COGNITO_CLIENT_ID": {
+                  "Ref": "CognitoClientId"
+                }
               }
             },
             "Policies": [
@@ -53,9 +74,36 @@
                   {
                     "Effect": "Allow",
                     "Action": [
-                      "s3:ListBucket"
+                      "s3:ListBucket",
+                      "s3:HeadBucket"
                     ],
                     "Resource": "arn:aws:s3:::f1tof12-db-backup"
+                  },
+                  {
+                    "Effect": "Allow",
+                    "Action": [
+                      "cognito-idp:GetUser",
+                      "cognito-idp:ListUsers",
+                      "cognito-idp:InitiateAuth",
+                      "cognito-idp:RespondToAuthChallenge",
+                      "cognito-idp:GlobalSignOut",
+                      "cognito-idp:AdminUpdateUserAttributes",
+                      "cognito-idp:AdminResetUserPassword",
+                      "cognito-idp:AdminConfirmSignUp",
+                      "cognito-idp:AdminEnableUser",
+                      "cognito-idp:AdminDisableUser",
+                      "cognito-idp:AdminCreateUser",
+                      "cognito-idp:AdminSetUserPassword"
+                    ],
+                    "Resource": "*"
+                  },
+                  {
+                    "Effect": "Allow",
+                    "Action": [
+                      "ssm:GetParameter",
+                      "ssm:GetParameters"
+                    ],
+                    "Resource": "arn:aws:ssm:ap-south-1:*:parameter/f1tof12/cognito/*"
                   }
                 ]
               }
@@ -88,15 +136,29 @@
         }
       }
     },
-    "error": {
-      "message": "You must sign in or use a license key with Serverless Framework V.4 and later versions. Please use \"serverless login\".",
-      "stack": "Error: You must sign in or use a license key with Serverless Framework V.4 and later versions. Please use \"serverless login\".\n    at Authentication.getAuthenticatedData (file:///Users/koteswarvijay/.serverless/releases/4.18.0/package/dist/sf-core.js:806:10899)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at async Authentication.authenticate (file:///Users/koteswarvijay/.serverless/releases/4.18.0/package/dist/sf-core.js:808:22245)\n    at async CfnRunner.resolveVariablesAndAuthenticate (file:///Users/koteswarvijay/.serverless/releases/4.18.0/package/dist/sf-core.js:812:2379)\n    at async CfnRunner.run (file:///Users/koteswarvijay/.serverless/releases/4.18.0/package/dist/sf-core.js:1129:3015)\n    at async route (file:///Users/koteswarvijay/.serverless/releases/4.18.0/package/dist/sf-core.js:1603:2878)\n    at async Object.run (file:///Users/koteswarvijay/.serverless/releases/4.18.0/package/dist/sf-core.js:1604:3661)\n    at async run2 (file:///Users/koteswarvijay/.serverless/releases/4.18.0/package/dist/sf-core.js:1604:4815)"
+    "dashboard": {
+      "isEnabledForService": false,
+      "requiredAuthentication": false,
+      "orgFeaturesInUse": null,
+      "orgObservabilityIntegrations": null,
+      "serviceAppId": null,
+      "serviceProvider": null,
+      "instanceParameters": null
     },
-    "serviceRawFile": "AWSTemplateFormatVersion: '2010-09-09'\nTransform: AWS::Serverless-2016-10-31\n\nGlobals:\n  Function:\n    Timeout: 30\n    Runtime: python3.12\n  HttpApi:\n    CorsConfiguration:\n      AllowOrigins:\n        - \"*\"\n      AllowHeaders:\n        - \"*\"\n      AllowMethods:\n        - \"*\"\n\nResources:\n  F1toF12API:\n    Type: AWS::Serverless::Function\n    Properties:\n      CodeUri: .\n      Handler: lambda_handler.handler\n      Environment:\n        Variables:\n          S3_BUCKET: f1tof12-db-backup\n          JWT_SECRET_KEY: \"your-generated-secure-key-here\"\n      Policies:\n        - Version: \"2012-10-17\"\n          Statement:\n            - Effect: Allow\n              Action:\n                - s3:GetObject\n                - s3:PutObject\n                - s3:DeleteObject\n              Resource: \"arn:aws:s3:::f1tof12-db-backup/*\"\n            - Effect: Allow\n              Action:\n                - s3:ListBucket\n              Resource: \"arn:aws:s3:::f1tof12-db-backup\"\n      Events:\n        ApiEvent:\n          Type: HttpApi\n          Properties:\n            Path: /{proxy+}\n            Method: ANY\n        RootEvent:\n          Type: HttpApi\n          Properties:\n            Path: /\n            Method: ANY\n\nOutputs:\n  ApiUrl:\n    Description: \"API Gateway endpoint URL\"\n    Value: !Sub \"https://${ServerlessHttpApi}.execute-api.${AWS::Region}.amazonaws.com/\"",
+    "error": {
+      "message": "Please specify a stack name using the --stack option, or persist it in the samconfig.toml file.",
+      "stack": "Error: Please specify a stack name using the --stack option, or persist it in the samconfig.toml file.\n    at getCfnConfig (file:///Users/koteswarvijay/.serverless/releases/4.18.2/package/dist/sf-core.js:1126:10955)\n    at deploy_default (file:///Users/koteswarvijay/.serverless/releases/4.18.2/package/dist/sf-core.js:1126:18769)\n    at CfnRunner.run (file:///Users/koteswarvijay/.serverless/releases/4.18.2/package/dist/sf-core.js:1129:3209)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at async route (file:///Users/koteswarvijay/.serverless/releases/4.18.2/package/dist/sf-core.js:1603:2878)\n    at async Object.run (file:///Users/koteswarvijay/.serverless/releases/4.18.2/package/dist/sf-core.js:1604:3661)\n    at async run2 (file:///Users/koteswarvijay/.serverless/releases/4.18.2/package/dist/sf-core.js:1604:4815)",
+      "code": "MISSING_STACK_NAME"
+    },
+    "serviceRawFile": "AWSTemplateFormatVersion: '2010-09-09'\nTransform: AWS::Serverless-2016-10-31\n\nParameters:\n  CognitoUserPoolId:\n    Type: AWS::SSM::Parameter::Value<String>\n    Default: /f1tof12/cognito/user-pool-id\n  CognitoClientId:\n    Type: AWS::SSM::Parameter::Value<String>\n    Default: /f1tof12/cognito/client-id\n\nGlobals:\n  Function:\n    Timeout: 30\n    Runtime: python3.12\n  HttpApi:\n    CorsConfiguration:\n      AllowOrigins:\n        - \"http://localhost:3000\"\n        - \"https://f1tof12.com\"\n        - \"https://zhijjc4ru2.execute-api.ap-south-1.amazonaws.com/\"\n      AllowHeaders:\n        - \"Content-Type\"\n        - \"Authorization\"\n      AllowMethods:\n        - \"GET\"\n        - \"POST\"\n        - \"PUT\"\n        - \"DELETE\"\n\nResources:\n  F1toF12API:\n    Type: AWS::Serverless::Function\n    Properties:\n      CodeUri: .\n      Handler: lambda_handler.handler\n      Environment:\n        Variables:\n          S3_BUCKET: f1tof12-db-backup\n          COGNITO_USER_POOL_ID: !Ref CognitoUserPoolId\n          COGNITO_CLIENT_ID: !Ref CognitoClientId\n      Policies:\n        - Version: \"2012-10-17\"\n          Statement:\n            - Effect: Allow\n              Action:\n                - s3:GetObject\n                - s3:PutObject\n                - s3:DeleteObject\n              Resource: \"arn:aws:s3:::f1tof12-db-backup/*\"\n            - Effect: Allow\n              Action:\n                - s3:ListBucket\n                - s3:HeadBucket\n              Resource: \"arn:aws:s3:::f1tof12-db-backup\"\n            - Effect: Allow\n              Action:\n                - cognito-idp:GetUser\n                - cognito-idp:ListUsers\n                - cognito-idp:InitiateAuth\n                - cognito-idp:RespondToAuthChallenge\n                - cognito-idp:GlobalSignOut\n                - cognito-idp:AdminUpdateUserAttributes\n                - cognito-idp:AdminResetUserPassword\n                - cognito-idp:AdminConfirmSignUp\n                - cognito-idp:AdminEnableUser\n                - cognito-idp:AdminDisableUser\n                - cognito-idp:AdminCreateUser\n                - cognito-idp:AdminSetUserPassword\n              Resource: \"*\"\n            - Effect: Allow\n              Action:\n                - ssm:GetParameter\n                - ssm:GetParameters\n              Resource: \"arn:aws:ssm:ap-south-1:*:parameter/f1tof12/cognito/*\"\n      Events:\n        ApiEvent:\n          Type: HttpApi\n          Properties:\n            Path: /{proxy+}\n            Method: ANY\n        RootEvent:\n          Type: HttpApi\n          Properties:\n            Path: /\n            Method: ANY\n\nOutputs:\n  ApiUrl:\n    Description: \"API Gateway endpoint URL\"\n    Value: !Sub \"https://${ServerlessHttpApi}.execute-api.${AWS::Region}.amazonaws.com/\"",
     "command": [
       "deploy"
     ],
     "options": {},
+    "orgId": "61698826-66db-48bd-a200-df0e17941cbe",
+    "orgName": "f1tof12",
+    "userId": "lZxF2NsPRJD67TJ9tt",
+    "userName": "f1tof12",
     "serviceProviderAwsCfStackId": null,
     "serviceProviderAwsCfStackCreated": null,
     "serviceProviderAwsCfStackUpdated": null,

@@ -8,6 +8,8 @@ from scripts.invoices.api import router as invoice_router
 from version import __version__
 import logging
 
+# Configure root logger for Lambda
+logging.getLogger().setLevel(logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="F1toF12 API", debug=True)
