@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from scripts.db.database import Invoice, User
-from scripts.db.session import get_db_with_backup
+from scripts.db.models import Invoice, User
+from scripts.db.database import get_db
 from pydantic import BaseModel, field_validator
 from datetime import date
 from typing import Optional
@@ -48,7 +48,7 @@ class InvoiceResponse(BaseModel):
         from_attributes = True
 
 @router.post("/create")
-def create_invoice(invoice: InvoiceCreate, current_user: User = Depends(verify_cognito_token), db: Session = Depends(get_db_with_backup)):
+def create_invoice(invoice: InvoiceCreate, current_user: User = Depends(verify_cognito_token), db: Session = Depends(get_db)):
     try:
         db_invoice = Invoice(**invoice.dict())
         db.add(db_invoice)
@@ -59,7 +59,7 @@ def create_invoice(invoice: InvoiceCreate, current_user: User = Depends(verify_c
         handle_error(e, "create invoice")
 
 @router.get("/list")
-def get_invoices(current_user: User = Depends(verify_cognito_token), db: Session = Depends(get_db_with_backup)):
+def get_invoices(current_user: User = Depends(verify_cognito_token), db: Session = Depends(get_db)):
     try:
         invoices = db.query(Invoice).all()
         invoices_data = [invoice.__dict__ for invoice in invoices]
@@ -68,7 +68,7 @@ def get_invoices(current_user: User = Depends(verify_cognito_token), db: Session
         handle_error(e, "get invoices")
 
 @router.get("/{invoice_id}/fetch")
-def get_invoice(invoice_id: int, current_user: User = Depends(verify_cognito_token), db: Session = Depends(get_db_with_backup)):
+def get_invoice(invoice_id: int, current_user: User = Depends(verify_cognito_token), db: Session = Depends(get_db)):
     try:
         invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
         if not invoice:
@@ -84,7 +84,7 @@ def get_invoice(invoice_id: int, current_user: User = Depends(verify_cognito_tok
         handle_error(e, "get invoice")
 
 @router.put("/{invoice_id}/update")
-def update_invoice(invoice_id: int, status_update: InvoiceStatusUpdate, current_user: User = Depends(verify_cognito_token), db: Session = Depends(get_db_with_backup)):
+def update_invoice(invoice_id: int, status_update: InvoiceStatusUpdate, current_user: User = Depends(verify_cognito_token), db: Session = Depends(get_db)):
     try:
         db_invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
         if not db_invoice:

@@ -27,4 +27,7 @@ sam build || { echo "❌ Build failed"; exit 1; }
 echo "🚀 Deploying to AWS..."
 sam deploy --stack-name f1tof12-server --region ap-south-1 --capabilities CAPABILITY_IAM --s3-bucket $S3_BUCKET_NAME || { echo "❌ Deploy failed"; exit 1; }
 
+echo "📊 Setting up DynamoDB tables..."
+python setup_environment.py server || echo "⚠️  DynamoDB setup skipped (tables may already exist)"
+
 echo "✅ Clean build and deploy complete!"

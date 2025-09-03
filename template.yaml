@@ -36,23 +36,17 @@ Resources:
       Handler: lambda_handler.handler
       Environment:
         Variables:
-          S3_BUCKET: f1tof12-db-backup
           COGNITO_USER_POOL_ID: !Ref CognitoUserPoolId
           COGNITO_CLIENT_ID: !Ref CognitoClientId
+          USE_DYNAMODB: true
+          USERS_TABLE: !Ref UsersTable
+          COMPANIES_TABLE: !Ref CompaniesTable
+          SPOCS_TABLE: !Ref SPOCsTable
+          INVOICES_TABLE: !Ref InvoicesTable
       Policies:
         - Version: "2012-10-17"
           Statement:
-            - Effect: Allow
-              Action:
-                - s3:GetObject
-                - s3:PutObject
-                - s3:DeleteObject
-              Resource: "arn:aws:s3:::f1tof12-db-backup/*"
-            - Effect: Allow
-              Action:
-                - s3:ListBucket
-                - s3:HeadBucket
-              Resource: "arn:aws:s3:::f1tof12-db-backup"
+
             - Effect: Allow
               Action:
                 - cognito-idp:GetUser
@@ -73,6 +67,20 @@ Resources:
                 - ssm:GetParameter
                 - ssm:GetParameters
               Resource: "arn:aws:ssm:ap-south-1:*:parameter/f1tof12/cognito/*"
+            - Effect: Allow
+              Action:
+                - dynamodb:GetItem
+                - dynamodb:PutItem
+                - dynamodb:UpdateItem
+                - dynamodb:DeleteItem
+                - dynamodb:Scan
+                - dynamodb:Query
+              Resource:
+                - !GetAtt UsersTable.Arn
+                - !GetAtt CompaniesTable.Arn
+                - !GetAtt SPOCsTable.Arn
+                - !GetAtt InvoicesTable.Arn
+                - !GetAtt CountersTable.Arn
       Events:
         ApiEvent:
           Type: HttpApi
@@ -85,7 +93,82 @@ Resources:
             Path: /
             Method: ANY
 
+  UsersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: f1tof12-users
+      AttributeDefinitions:
+        - AttributeName: username
+          AttributeType: S
+      KeySchema:
+        - AttributeName: username
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+
+  CompaniesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: f1tof12-companies
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: N
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+
+  SPOCsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: f1tof12-spocs
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: N
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+
+  InvoicesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: f1tof12-invoices
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: N
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+
+  CountersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: f1tof12-counters
+      AttributeDefinitions:
+        - AttributeName: table_name
+          AttributeType: S
+      KeySchema:
+        - AttributeName: table_name
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+
 Outputs:
   ApiUrl:
     Description: "API Gateway endpoint URL"
     Value: !Sub "https://${ServerlessHttpApi}.execute-api.${AWS::Region}.amazonaws.com/"
+  UsersTableName:
+    Description: "DynamoDB Users Table Name"
+    Value: !Ref UsersTable
+  CompaniesTableName:
+    Description: "DynamoDB Companies Table Name"
+    Value: !Ref CompaniesTable
+  SPOCsTableName:
+    Description: "DynamoDB SPOCs Table Name"
+    Value: !Ref SPOCsTable
+  InvoicesTableName:
+    Description: "DynamoDB Invoices Table Name"
+    Value: !Ref InvoicesTable
+  CountersTableName:
+    Description: "DynamoDB Counters Table Name"
+    Value: !Ref CountersTable

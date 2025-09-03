@@ -1,9 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
-from sqlalchemy import func
 from pydantic import BaseModel, field_validator
-from scripts.db.database import Company, User
-from scripts.db.session import get_db_with_backup
+from scripts.db.database_factory import get_database
 from auth import verify_cognito_token
 from scripts.utils.response import success_response, handle_error
 import logging
@@ -30,20 +27,19 @@ class CompanyUpdate(BaseModel):
         return v
 
 @router.post("/customer/register", response_model=dict)
-def register(company: CompanyCreate, db: Session = Depends(get_db_with_backup), current_user: User = Depends(verify_cognito_token)):
+def register(company: CompanyCreate, current_user: dict = Depends(verify_cognito_token)):
     logger.info("Entering register method")
     try:
-        db_company = db.query(Company).filter(func.lower(Company.name) == func.lower(company.name)).first()
-        if db_company:
+        db = get_database()
+        existing_company = db.get_company_by_name(company.name)
+        if existing_company:
             raise HTTPException(status_code=409, detail={
                 "error": "COMPANY_EXISTS",
                 "message": "Company already registered",
                 "code": "COMP_409"
             })
         
-        db_company = Company(name=company.name, spoc=company.spoc, email_id=company.email_id, status=company.status)
-        db.add(db_company)
-        db.commit()
+        db.create_company(company.name, company.spoc, company.email_id, company.status)
         logger.info("Exiting register method - success")
         return success_response(message="Company registered successfully")
     except HTTPException:
@@ -54,11 +50,11 @@ def register(company: CompanyCreate, db: Session = Depends(get_db_with_backup), 
         handle_error(e, "register company")
 
 @router.get("/customer/list")
-def list_companies(db: Session = Depends(get_db_with_backup), current_user: User = Depends(verify_cognito_token)):
+def list_companies(current_user: dict = Depends(verify_cognito_token)):
     logger.info("Entering list_companies method")
     try:
-        companies = db.query(Company).all()
-        companies_data = [{"id": company.id, "name": company.name, "spoc": company.spoc, "email_id": company.email_id, "status": company.status, "created_date": company.created_date, "updated_date": company.updated_date} for company in companies]
+        db = get_database()
+        companies_data = db.list_companies()
         logger.info("Exiting list_companies method - success")
         return success_response(companies_data, "Companies retrieved successfully")
     except Exception as e:
@@ -66,16 +62,16 @@ def list_companies(db: Session = Depends(get_db_with_backup), current_user: User
         handle_error(e, "list companies")
 
 @router.put("/customer/{company_id}/update")
-def update_company(company_id: int, company_update: CompanyUpdate, db: Session = Depends(get_db_with_backup), current_user: User = Depends(verify_cognito_token)):
+def update_company(company_id: int, company_update: CompanyUpdate, current_user: dict = Depends(verify_cognito_token)):
     logger.info(f"Entering update_company method for company_id: {company_id}")
     try:
         update_data = {}
-        if company_update.spoc is not None:
-            update_data[Company.spoc] = company_update.spoc
-        if company_update.email_id is not None:
-            update_data[Company.email_id] = company_update.email_id
-        if company_update.status is not None:
-            update_data[Company.status] = company_update.status
+        if company_update.spoc:
+            update_data['spoc'] = company_update.spoc
+        if company_update.email_id:
+            update_data['email_id'] = company_update.email_id
+        if company_update.status:
+            update_data['status'] = company_update.status
         
         if not update_data:
             raise HTTPException(status_code=400, detail={
@@ -84,15 +80,15 @@ def update_company(company_id: int, company_update: CompanyUpdate, db: Session =
                 "code": "COMP_400"
             })
         
-        result = db.query(Company).filter(Company.id == company_id).update(update_data)
-        if result == 0:
+        db = get_database()
+        success = db.update_company(company_id, update_data)
+        if not success:
             raise HTTPException(status_code=404, detail={
                 "error": "COMPANY_NOT_FOUND",
                 "message": "Company not found",
                 "code": "COMP_404"
             })
         
-        db.commit()
         logger.info(f"Exiting update_company method for company_id: {company_id} - success")
         return success_response(message="Company updated successfully")
     except HTTPException:
