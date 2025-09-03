@@ -1,7 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from scripts.db.models import Invoice, User
-from scripts.db.database import get_db
+from scripts.db.database_factory import get_database
 from pydantic import BaseModel, field_validator
 from datetime import date
 from typing import Optional
@@ -48,60 +47,54 @@ class InvoiceResponse(BaseModel):
         from_attributes = True
 
 @router.post("/create")
-def create_invoice(invoice: InvoiceCreate, current_user: User = Depends(verify_cognito_token), db: Session = Depends(get_db)):
+def create_invoice(invoice: InvoiceCreate, current_user: dict = Depends(verify_cognito_token)):
     try:
-        db_invoice = Invoice(**invoice.dict())
-        db.add(db_invoice)
-        db.commit()
-        db.refresh(db_invoice)
-        return success_response(db_invoice.__dict__, "Invoice created successfully")
+        db = get_database()
+        invoice_data = db.create_invoice(invoice.dict())
+        return success_response(invoice_data, "Invoice created successfully")
     except Exception as e:
         handle_error(e, "create invoice")
 
 @router.get("/list")
-def get_invoices(current_user: User = Depends(verify_cognito_token), db: Session = Depends(get_db)):
+def get_invoices(current_user: dict = Depends(verify_cognito_token)):
     try:
-        invoices = db.query(Invoice).all()
-        invoices_data = [invoice.__dict__ for invoice in invoices]
+        db = get_database()
+        invoices_data = db.list_invoices()
         return success_response(invoices_data, "Invoices retrieved successfully")
     except Exception as e:
         handle_error(e, "get invoices")
 
 @router.get("/{invoice_id}/fetch")
-def get_invoice(invoice_id: int, current_user: User = Depends(verify_cognito_token), db: Session = Depends(get_db)):
+def get_invoice(invoice_id: int, current_user: dict = Depends(verify_cognito_token)):
     try:
-        invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
+        db = get_database()
+        invoice = db.get_invoice(invoice_id)
         if not invoice:
             raise HTTPException(status_code=404, detail={
                 "error": "INVOICE_NOT_FOUND",
                 "message": "Invoice not found",
                 "code": "INV_404"
             })
-        return success_response(invoice.__dict__, "Invoice retrieved successfully")
+        return success_response(invoice, "Invoice retrieved successfully")
     except HTTPException:
         raise
     except Exception as e:
         handle_error(e, "get invoice")
 
 @router.put("/{invoice_id}/update")
-def update_invoice(invoice_id: int, status_update: InvoiceStatusUpdate, current_user: User = Depends(verify_cognito_token), db: Session = Depends(get_db)):
+def update_invoice(invoice_id: int, status_update: InvoiceStatusUpdate, current_user: dict = Depends(verify_cognito_token)):
     try:
-        db_invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
-        if not db_invoice:
+        db = get_database()
+        success = db.update_invoice(invoice_id, {"status": status_update.status})
+        if not success:
             raise HTTPException(status_code=404, detail={
                 "error": "INVOICE_NOT_FOUND",
                 "message": "Invoice not found",
                 "code": "INV_404"
             })
         
-        current_status = getattr(db_invoice, 'status', None)
-        if current_status == status_update.status:
-            return success_response(db_invoice.__dict__, "Invoice status unchanged")
-        
-        db.query(Invoice).filter(Invoice.id == invoice_id).update({"status": status_update.status})
-        db.commit()
-        db.refresh(db_invoice)
-        return success_response(db_invoice.__dict__, "Invoice status updated successfully")
+        updated_invoice = db.get_invoice(invoice_id)
+        return success_response(updated_invoice, "Invoice status updated successfully")
     except HTTPException:
         raise
     except Exception as e:

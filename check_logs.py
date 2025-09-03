@@ -1,9 +1,9 @@
 import boto3
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 def get_lambda_logs():
-    logs_client = boto3.client('logs', region_name='ap-south-1')
+    logs_client = boto3.client('logs')
     
     # Get log group for the Lambda function
     log_group = '/aws/lambda/f1tof12-server-F1toF12API-*'
@@ -17,8 +17,10 @@ def get_lambda_logs():
             print(f"Found log group: {log_group_name}")
             
             # Get recent logs
-            end_time = datetime.now()
-            start_time = end_time - timedelta(hours=1)
+            end_time = datetime.now(timezone.utc)
+            start_time = end_time - timedelta(days=7)  # Expand to 7 days
+            
+            print(f"Searching logs from {start_time} to {end_time}")
             
             logs_response = logs_client.filter_log_events(
                 logGroupName=log_group_name,
@@ -26,9 +28,10 @@ def get_lambda_logs():
                 endTime=int(end_time.timestamp() * 1000)
             )
             
+            print(f"Found {len(logs_response['events'])} log events")
             print("\n=== Recent Lambda Logs ===")
-            for event in logs_response['events'][-50:]:  # Last 10 events
-                timestamp = datetime.fromtimestamp(event['timestamp'] / 1000)
+            for event in logs_response['events'][-50:]:  # Last 50 events
+                timestamp = datetime.fromtimestamp(event['timestamp'] / 1000, tz=timezone.utc)
                 print(f"[{timestamp}] {event['message']}", end="")
         else:
             print("No log groups found")

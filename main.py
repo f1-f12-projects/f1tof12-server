@@ -2,6 +2,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from scripts.customer.api import router as customer_router
 from scripts.users.api import router as users_router
+from scripts.spoc.api import router as spoc_router
+from scripts.invoices.api import router as invoice_router
 from version import __version__
 import logging
 
@@ -13,6 +15,8 @@ app = FastAPI(title="F1toF12 API", debug=True)
 # Include routers
 app.include_router(customer_router)
 app.include_router(users_router)
+app.include_router(spoc_router)
+app.include_router(invoice_router)
 
 # Add CORS middleware
 app.add_middleware(
@@ -29,7 +33,7 @@ async def startup_event():
 
 @app.get("/")
 def root():
-    return {"message": "F1toF12 API", "version": __version__, "endpoints": ["/login", "/customer/register", "/customer/list", "/customer/test-db", "/health"]}
+    return {"message": "F1toF12 API", "version": __version__, "endpoints": ["/login", "/customer/register", "/customer/list", "/spoc/add", "/spoc/list", "/invoices/create", "/invoices/list", "/health"]}
 
 @app.get("/version")
 def get_version():

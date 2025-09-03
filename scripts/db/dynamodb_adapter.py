@@ -84,6 +84,89 @@ class DynamoDBAdapter(DatabaseInterface):
         except ClientError:
             return False
     
+    def create_spoc(self, company_id: int, name: str, phone: str, email_id: str, location: str, status: str = "active") -> Dict[str, Any]:
+        now = datetime.now(timezone.utc).isoformat()
+        spoc_id = self._get_next_id('spocs')
+        spoc_data = {
+            'id': spoc_id,
+            'company_id': company_id,
+            'name': name,
+            'phone': phone,
+            'email_id': email_id,
+            'location': location,
+            'status': status,
+            'created_date': now,
+            'updated_date': now
+        }
+        self.spocs_table.put_item(Item=spoc_data)
+        return spoc_data
+    
+    def list_spocs(self) -> List[Dict[str, Any]]:
+        try:
+            response = self.spocs_table.scan()
+            return response.get('Items', [])
+        except ClientError:
+            return []
+    
+    def update_spoc(self, spoc_id: int, update_data: Dict[str, Any]) -> bool:
+        try:
+            update_expression = "SET "
+            expression_values = {}
+            
+            for key, value in update_data.items():
+                update_expression += f"{key} = :{key}, "
+                expression_values[f":{key}"] = value
+            
+            update_expression += "updated_date = :updated_date"
+            expression_values[":updated_date"] = datetime.now(timezone.utc).isoformat()
+            
+            self.spocs_table.update_item(
+                Key={'id': spoc_id},
+                UpdateExpression=update_expression,
+                ExpressionAttributeValues=expression_values
+            )
+            return True
+        except ClientError:
+            return False
+    
+    def create_invoice(self, invoice_data: Dict[str, Any]) -> Dict[str, Any]:
+        invoice_id = self._get_next_id('invoices')
+        invoice_data['id'] = invoice_id
+        self.invoices_table.put_item(Item=invoice_data)
+        return invoice_data
+    
+    def list_invoices(self) -> List[Dict[str, Any]]:
+        try:
+            response = self.invoices_table.scan()
+            return response.get('Items', [])
+        except ClientError:
+            return []
+    
+    def get_invoice(self, invoice_id: int) -> Optional[Dict[str, Any]]:
+        try:
+            response = self.invoices_table.get_item(Key={'id': invoice_id})
+            return response.get('Item')
+        except ClientError:
+            return None
+    
+    def update_invoice(self, invoice_id: int, update_data: Dict[str, Any]) -> bool:
+        try:
+            update_expression = "SET "
+            expression_values = {}
+            
+            for key, value in update_data.items():
+                update_expression += f"{key} = :{key}, "
+                expression_values[f":{key}"] = value
+            
+            self.invoices_table.update_item(
+                Key={'id': invoice_id},
+                UpdateExpression=update_expression,
+                ExpressionAttributeValues=expression_values
+            )
+            return True
+        except ClientError:
+            return False
+    
     def _get_next_id(self, table_type: str) -> int:
         """Get next auto-increment ID for a table type"""
         counter_table = self.dynamodb.Table('f1tof12-counters')
