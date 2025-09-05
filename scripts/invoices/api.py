@@ -4,7 +4,7 @@ from scripts.db.database_factory import get_database
 from pydantic import BaseModel, field_validator
 from datetime import date
 from typing import Optional
-from auth import verify_cognito_token
+from auth import require_finance
 from scripts.utils.response import success_response, handle_error
 
 router = APIRouter(prefix="/invoices", tags=["invoices"])
@@ -47,7 +47,7 @@ class InvoiceResponse(BaseModel):
         from_attributes = True
 
 @router.post("/create")
-def create_invoice(invoice: InvoiceCreate, current_user: dict = Depends(verify_cognito_token)):
+def create_invoice(invoice: InvoiceCreate, user_info: dict = Depends(require_finance)):
     try:
         db = get_database()
         invoice_data = db.create_invoice(invoice.dict())
@@ -56,7 +56,7 @@ def create_invoice(invoice: InvoiceCreate, current_user: dict = Depends(verify_c
         handle_error(e, "create invoice")
 
 @router.get("/list")
-def get_invoices(current_user: dict = Depends(verify_cognito_token)):
+def get_invoices(user_info: dict = Depends(require_finance)):
     try:
         db = get_database()
         invoices_data = db.list_invoices()
@@ -65,7 +65,7 @@ def get_invoices(current_user: dict = Depends(verify_cognito_token)):
         handle_error(e, "get invoices")
 
 @router.get("/{invoice_id}/fetch")
-def get_invoice(invoice_id: int, current_user: dict = Depends(verify_cognito_token)):
+def get_invoice(invoice_id: int, user_info: dict = Depends(require_finance)):
     try:
         db = get_database()
         invoice = db.get_invoice(invoice_id)
@@ -82,7 +82,7 @@ def get_invoice(invoice_id: int, current_user: dict = Depends(verify_cognito_tok
         handle_error(e, "get invoice")
 
 @router.put("/{invoice_id}/update")
-def update_invoice(invoice_id: int, status_update: InvoiceStatusUpdate, current_user: dict = Depends(verify_cognito_token)):
+def update_invoice(invoice_id: int, status_update: InvoiceStatusUpdate, user_info: dict = Depends(require_finance)):
     try:
         db = get_database()
         success = db.update_invoice(invoice_id, {"status": status_update.status})

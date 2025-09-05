@@ -4,7 +4,9 @@ from scripts.customer.api import router as customer_router
 from scripts.users.api import router as users_router
 from scripts.spoc.api import router as spoc_router
 from scripts.invoices.api import router as invoice_router
-from version import __version__
+from scripts.requirements.api import router as requirements_router
+from scripts.profiles.api import router as profiles_router
+from version import __version__, __changelog__
 import logging
 
 logging.getLogger().setLevel(logging.INFO)
@@ -17,6 +19,8 @@ app.include_router(customer_router)
 app.include_router(users_router)
 app.include_router(spoc_router)
 app.include_router(invoice_router)
+app.include_router(requirements_router)
+app.include_router(profiles_router)
 
 # Add CORS middleware
 app.add_middleware(
@@ -33,11 +37,36 @@ async def startup_event():
 
 @app.get("/")
 def root():
-    return {"message": "F1toF12 API", "version": __version__, "endpoints": ["/login", "/customer/register", "/customer/list", "/spoc/add", "/spoc/list", "/invoices/create", "/invoices/list", "/health"]}
+    return {"message": "F1toF12 API", "version": __version__, "endpoints": ["/login", "/health"]}
 
 @app.get("/version")
 def get_version():
-    return {"version": __version__}
+    # Get version history to determine type
+    versions = list(__changelog__.keys())
+    current_version = __version__
+    
+    # Find previous version
+    current_idx = versions.index(current_version) if current_version in versions else 0
+    
+    if current_idx > 0:
+        prev_version = versions[current_idx + 1]  # Next in list (older version)
+        curr_parts = [int(x) for x in current_version.split('.')]
+        prev_parts = [int(x) for x in prev_version.split('.')]
+        
+        if curr_parts[0] > prev_parts[0]:
+            version_type = "Major"
+        elif curr_parts[1] > prev_parts[1]:
+            version_type = "Minor"
+        else:
+            version_type = "Patch"
+    else:
+        version_type = "Initial"
+    
+    return {
+        "version": __version__,
+        "type": version_type,
+        "changelog": __changelog__[__version__]
+    }
 
 @app.get("/health")
 def health_check():

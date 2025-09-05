@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, field_validator
 from scripts.db.database_factory import get_database
-from auth import verify_cognito_token
+from auth import require_manager
 from scripts.utils.response import success_response, handle_error
 import logging
 
@@ -31,7 +31,7 @@ class SPOCUpdate(BaseModel):
         return v
 
 @router.post("/spoc/add")
-def add_spoc(spoc: SPOCCreate, current_user: dict = Depends(verify_cognito_token)):
+def add_spoc(spoc: SPOCCreate, user_info: dict = Depends(require_manager)):
     try:
         db = get_database()
         spoc_data = db.create_spoc(
@@ -47,7 +47,7 @@ def add_spoc(spoc: SPOCCreate, current_user: dict = Depends(verify_cognito_token
         handle_error(e, "add SPOC")
 
 @router.get("/spoc/list")
-def list_spocs(current_user: dict = Depends(verify_cognito_token)):
+def list_spocs(user_info: dict = Depends(require_manager)):
     try:
         db = get_database()
         spocs_data = db.list_spocs()
@@ -56,7 +56,7 @@ def list_spocs(current_user: dict = Depends(verify_cognito_token)):
         handle_error(e, "list SPOCs")
 
 @router.put("/spoc/{spoc_id}/update")
-def update_spoc(spoc_id: int, spoc_update: SPOCUpdate, current_user: dict = Depends(verify_cognito_token)):
+def update_spoc(spoc_id: int, spoc_update: SPOCUpdate, user_info: dict = Depends(require_manager)):
     try:
         update_data = {}
         if spoc_update.name:

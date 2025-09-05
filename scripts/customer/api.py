@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, field_validator
 from scripts.db.database_factory import get_database
-from auth import verify_cognito_token
+from auth import require_manager
 from scripts.utils.response import success_response, handle_error
+from scripts.constants import USER_STATUS_ACTIVE, USER_STATUS_INACTIVE
 import logging
 
 logger = logging.getLogger(__name__)
@@ -13,7 +14,7 @@ class CompanyCreate(BaseModel):
     name: str
     spoc: str
     email_id: str
-    status: str = "active"
+    status: str = USER_STATUS_ACTIVE
 
 class CompanyUpdate(BaseModel):
     spoc: str = ''
@@ -22,12 +23,12 @@ class CompanyUpdate(BaseModel):
     
     @field_validator('status')
     def validate_status(cls, v):
-        if v is not None and v not in ['active', 'inactive']:
-            raise ValueError('Status must be either "active" or "inactive"')
+        if v is not None and v not in [USER_STATUS_ACTIVE, USER_STATUS_INACTIVE]:
+            raise ValueError(f'Status must be either "{USER_STATUS_ACTIVE}" or "{USER_STATUS_INACTIVE}"')
         return v
 
 @router.post("/customer/register", response_model=dict)
-def register(company: CompanyCreate, current_user: dict = Depends(verify_cognito_token)):
+def register(company: CompanyCreate, user_info: dict = Depends(require_manager)):
     logger.info("Entering register method")
     try:
         db = get_database()
@@ -50,7 +51,7 @@ def register(company: CompanyCreate, current_user: dict = Depends(verify_cognito
         handle_error(e, "register company")
 
 @router.get("/customer/list")
-def list_companies(current_user: dict = Depends(verify_cognito_token)):
+def list_companies(user_info: dict = Depends(require_manager)):
     logger.info("Entering list_companies method")
     try:
         db = get_database()
@@ -62,7 +63,7 @@ def list_companies(current_user: dict = Depends(verify_cognito_token)):
         handle_error(e, "list companies")
 
 @router.put("/customer/{company_id}/update")
-def update_company(company_id: int, company_update: CompanyUpdate, current_user: dict = Depends(verify_cognito_token)):
+def update_company(company_id: int, company_update: CompanyUpdate, user_info: dict = Depends(require_manager)):
     logger.info(f"Entering update_company method for company_id: {company_id}")
     try:
         update_data = {}
@@ -89,11 +90,11 @@ def update_company(company_id: int, company_update: CompanyUpdate, current_user:
                 "code": "COMP_404"
             })
         
-        logger.info(f"Exiting update_company method for company_id: {company_id} - success")
+        logger.info(f"Company updated successfully")
         return success_response(message="Company updated successfully")
     except HTTPException:
-        logger.warning(f"Exiting update_company method for company_id: {company_id} - HTTP exception")
+        logger.warning(f"Exiting update_company method - HTTP exception")
         raise
     except Exception as e:
-        logger.error(f"Exiting update_company method for company_id: {company_id} - error")
+        logger.error(f"Exiting update_company method - error")
         handle_error(e, "update company")

@@ -43,7 +43,7 @@ def create_dynamodb_tables():
             )
             print(f"Created table: {table.table_name}")
         except ClientError as e:
-            if e.response['Error']['Code'] == 'ResourceInUseException':
+            if e.response.get('Error', {}).get('Code') == 'ResourceInUseException':
                 print(f"Table {table_config['name']} already exists")
             else:
                 raise

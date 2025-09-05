@@ -89,3 +89,31 @@ class SQLiteAdapter(DatabaseInterface):
             return result > 0
         finally:
             db.close()
+    
+    def create_spoc(self, company_id: int, name: str, phone: str, email_id: str, location: str, status: str = "active") -> Dict[str, Any]:
+        # Placeholder implementation
+        return {"id": 1, "company_id": company_id, "name": name, "phone": phone, "email_id": email_id, "location": location, "status": status}
+    
+    def list_spocs(self) -> List[Dict[str, Any]]:
+        # Placeholder implementation
+        return []
+    
+    def update_spoc(self, spoc_id: int, update_data: Dict[str, Any]) -> bool:
+        # Placeholder implementation
+        return True
+    
+    def create_invoice(self, invoice_data: Dict[str, Any]) -> Dict[str, Any]:
+        # Placeholder implementation
+        return {"id": 1, **invoice_data}
+    
+    def list_invoices(self) -> List[Dict[str, Any]]:
+        # Placeholder implementation
+        return []
+    
+    def get_invoice(self, invoice_id: int) -> Optional[Dict[str, Any]]:
+        # Placeholder implementation
+        return None
+    
+    def update_invoice(self, invoice_id: int, update_data: Dict[str, Any]) -> bool:
+        # Placeholder implementation
+        return True
