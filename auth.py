@@ -62,3 +62,7 @@ require_management = require_admin
 # Combined role dependencies
 def require_lead_or_recruiter(credentials: HTTPAuthorizationCredentials = Depends(security)):
     return require_roles([ROLES[LEAD_ROLE], ROLES[RECRUITER_ROLE]])(credentials)
+
+# Combined role dependency for finance and manager
+def require_finance_or_manager(credentials = Depends(require_roles([FINANCE_ROLE, MANAGER_ROLE]))):
+    return credentials

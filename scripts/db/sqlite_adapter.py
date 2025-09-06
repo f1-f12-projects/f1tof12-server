@@ -1,119 +1,90 @@
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Type
 from sqlalchemy.orm import Session
 from sqlalchemy import func
+from contextlib import contextmanager
 from scripts.db.database import get_db
-from scripts.db.models import User, Company
+from scripts.db.models import User, Company, Invoice, SPOC
 from scripts.db.database_factory import DatabaseInterface
 
 class SQLiteAdapter(DatabaseInterface):
-    def _get_db(self) -> Session:
-        return next(get_db())
-    
-    def create_user(self, username: str, hashed_password: str) -> Dict[str, Any]:
-        db = self._get_db()
+    @contextmanager
+    def _db_session(self):
+        db = next(get_db())
         try:
-            db_user = User(username=username, hashed_password=hashed_password)
-            db.add(db_user)
+            yield db
+        finally:
+            db.close()
+    
+    def _to_dict(self, obj, date_fields: Optional[List[str]] = None) -> Dict[str, Any]:
+        result = {c.name: getattr(obj, c.name) for c in obj.__table__.columns}
+        if date_fields:
+            for field in date_fields:
+                if result.get(field):
+                    result[field] = result[field].strftime('%Y-%m-%d')
+        return result
+    
+    def _create_record(self, model_class: Type, **kwargs) -> Dict[str, Any]:
+        with self._db_session() as db:
+            record = model_class(**kwargs)
+            db.add(record)
             db.commit()
-            return {"id": db_user.id, "username": db_user.username}
-        finally:
-            db.close()
+            return self._to_dict(record)
     
-    def get_user_by_username(self, username: str) -> Optional[Dict[str, Any]]:
-        db = self._get_db()
-        try:
-            user = db.query(User).filter(User.username == username).first()
-            if user:
-                return {"id": user.id, "username": user.username, "hashed_password": user.hashed_password}
-            return None
-        finally:
-            db.close()
-    
-    def create_company(self, name: str, spoc: str, email_id: str, status: str = "active") -> Dict[str, Any]:
-        db = self._get_db()
-        try:
-            db_company = Company(name=name, spoc=spoc, email_id=email_id, status=status)
-            db.add(db_company)
-            db.commit()
-            return {
-                "id": db_company.id,
-                "name": db_company.name,
-                "spoc": db_company.spoc,
-                "email_id": db_company.email_id,
-                "status": db_company.status,
-                "created_date": db_company.created_date,
-                "updated_date": db_company.updated_date
-            }
-        finally:
-            db.close()
-    
-    def get_company_by_name(self, name: str) -> Optional[Dict[str, Any]]:
-        db = self._get_db()
-        try:
-            company = db.query(Company).filter(func.lower(Company.name) == func.lower(name)).first()
-            if company:
-                return {
-                    "id": company.id,
-                    "name": company.name,
-                    "spoc": company.spoc,
-                    "email_id": company.email_id,
-                    "status": company.status,
-                    "created_date": company.created_date,
-                    "updated_date": company.updated_date
-                }
-            return None
-        finally:
-            db.close()
-    
-    def list_companies(self) -> List[Dict[str, Any]]:
-        db = self._get_db()
-        try:
-            companies = db.query(Company).all()
-            return [{
-                "id": company.id,
-                "name": company.name,
-                "spoc": company.spoc,
-                "email_id": company.email_id,
-                "status": company.status,
-                "created_date": company.created_date,
-                "updated_date": company.updated_date
-            } for company in companies]
-        finally:
-            db.close()
-    
-    def update_company(self, company_id: int, update_data: Dict[str, Any]) -> bool:
-        db = self._get_db()
-        try:
-            result = db.query(Company).filter(Company.id == company_id).update(update_data)
+    def _update_record(self, model_class: Type, record_id: int, update_data: Dict[str, Any]) -> bool:
+        with self._db_session() as db:
+            column_updates = {getattr(model_class, key): value for key, value in update_data.items()}
+            result = db.query(model_class).filter(model_class.id == record_id).update(column_updates)
             db.commit()
             return result > 0
-        finally:
-            db.close()
+    
+    def create_user(self, username: str, hashed_password: str) -> Dict[str, Any]:
+        result = self._create_record(User, username=username, hashed_password=hashed_password)
+        return {"id": result["id"], "username": result["username"]}
+    
+    def get_user_by_username(self, username: str) -> Optional[Dict[str, Any]]:
+        with self._db_session() as db:
+            user = db.query(User).filter(User.username == username).first()
+            return self._to_dict(user) if user else None
+    
+    def create_company(self, name: str, spoc: str, email_id: str, status: str = "active") -> Dict[str, Any]:
+        return self._create_record(Company, name=name, spoc=spoc, email_id=email_id, status=status)
+    
+    def get_company_by_name(self, name: str) -> Optional[Dict[str, Any]]:
+        with self._db_session() as db:
+            company = db.query(Company).filter(func.lower(Company.name) == func.lower(name)).first()
+            return self._to_dict(company) if company else None
+    
+    def list_companies(self) -> List[Dict[str, Any]]:
+        with self._db_session() as db:
+            companies = db.query(Company).all()
+            return [self._to_dict(company) for company in companies]
+    
+    def update_company(self, company_id: int, update_data: Dict[str, Any]) -> bool:
+        return self._update_record(Company, company_id, update_data)
     
     def create_spoc(self, company_id: int, name: str, phone: str, email_id: str, location: str, status: str = "active") -> Dict[str, Any]:
-        # Placeholder implementation
-        return {"id": 1, "company_id": company_id, "name": name, "phone": phone, "email_id": email_id, "location": location, "status": status}
+        return self._create_record(SPOC, company_id=company_id, name=name, phone=phone, email_id=email_id, location=location, status=status)
     
     def list_spocs(self) -> List[Dict[str, Any]]:
-        # Placeholder implementation
-        return []
+        with self._db_session() as db:
+            spocs = db.query(SPOC).all()
+            return [self._to_dict(spoc) for spoc in spocs]
     
     def update_spoc(self, spoc_id: int, update_data: Dict[str, Any]) -> bool:
-        # Placeholder implementation
-        return True
+        return self._update_record(SPOC, spoc_id, update_data)
     
     def create_invoice(self, invoice_data: Dict[str, Any]) -> Dict[str, Any]:
-        # Placeholder implementation
-        return {"id": 1, **invoice_data}
+        return self._create_record(Invoice, **invoice_data)
     
     def list_invoices(self) -> List[Dict[str, Any]]:
-        # Placeholder implementation
-        return []
+        with self._db_session() as db:
+            invoices = db.query(Invoice).all()
+            return [self._to_dict(invoice, ['raised_date', 'due_date']) for invoice in invoices]
     
     def get_invoice(self, invoice_id: int) -> Optional[Dict[str, Any]]:
-        # Placeholder implementation
-        return None
+        with self._db_session() as db:
+            invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
+            return self._to_dict(invoice, ['raised_date', 'due_date']) if invoice else None
     
     def update_invoice(self, invoice_id: int, update_data: Dict[str, Any]) -> bool:
-        # Placeholder implementation
-        return True
+        return self._update_record(Invoice, invoice_id, update_data)
