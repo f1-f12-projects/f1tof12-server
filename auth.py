@@ -52,12 +52,9 @@ def require_manager(credentials: HTTPAuthorizationCredentials = Depends(security
 def require_recruiter(credentials: HTTPAuthorizationCredentials = Depends(security)):
     return require_roles([ROLES[RECRUITER_ROLE]])(credentials)
 
-# Admin role dependency (all roles)
-def require_admin(credentials: HTTPAuthorizationCredentials = Depends(security)):
-    return require_roles(ALLOWED_ROLES)(credentials)
-
-# Alias for admin
-require_management = require_admin
+# Alias for admin (manager role)
+require_admin = require_manager
+require_management = require_manager
 
 # Combined role dependencies
 def require_lead_or_recruiter(credentials: HTTPAuthorizationCredentials = Depends(security)):

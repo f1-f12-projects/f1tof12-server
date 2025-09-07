@@ -27,7 +27,7 @@ def handle_error(e: Exception, operation: str = "operation"):
             'InvalidPasswordException': (400, "INVALID_PASSWORD", error_message),
             'UserNotConfirmedException': (400, "USER_NOT_CONFIRMED", "User not confirmed"),
             'TooManyRequestsException': (429, "TOO_MANY_REQUESTS", "Too many requests"),
-            'PasswordResetRequiredException': (400, "PASSWORD_CHANGE_REQUIRED", "Password change required")
+            'PasswordResetRequiredException': (400, "PASSWORD_RESET_REQUIRED", "Password reset required")
         }
         
         if error_code in error_mappings:
@@ -35,7 +35,7 @@ def handle_error(e: Exception, operation: str = "operation"):
             raise HTTPException(status_code=status_code, detail={
                 "error": error_type,
                 "message": message,
-                "code": error_code
+                "code": f"{error_type}_{status_code}"
             })
     
     logger.error(f"{operation} failed: {str(e)}")

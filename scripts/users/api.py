@@ -70,13 +70,29 @@ def authenticate_with_cognito(username: str, password: str):
         
         # Check if password change is required
         if 'ChallengeName' in response and response['ChallengeName'] == 'NEW_PASSWORD_REQUIRED':
-            raise HTTPException(status_code=400, detail="Password change required.")
+            raise HTTPException(status_code=400, detail={
+                "error": "PASSWORD_CHANGE_REQUIRED",
+                "message": "Password change required",
+                "code": "PASSWORD_CHANGE_REQUIRED_400"
+            })
         
         logger.info("Auth successful")
         return response['AuthenticationResult']
     except client.exceptions.NotAuthorizedException as e:
+        error_msg = str(e)
+        if "User is disabled" in error_msg:
+            logger.warning(f"Auth failed - user disabled: {username}")
+            raise HTTPException(status_code=403, detail={
+                "error": "USER_DISABLED",
+                "message": "User account is disabled",
+                "code": "USER_DISABLED_403"
+            })
         logger.warning(f"Auth failed - invalid credentials: {e}")
-        raise HTTPException(status_code=401, detail="Invalid credentials")
+        raise HTTPException(status_code=401, detail={
+            "error": "INVALID_CREDENTIALS",
+            "message": "Invalid credentials",
+            "code": "INVALID_CREDENTIALS_401"
+        })
     except HTTPException as e:
         raise e
     except Exception as e:
@@ -147,31 +163,40 @@ class RoleAssignment(BaseModel):
 
 @router.post("/login", status_code=status.HTTP_200_OK)
 def login(user: UserLogin):
-    logger.info(f"Login request for username: {user.username}")
-    auth_result = authenticate_with_cognito(user.username, user.password)
-    
-    # Get user role from Cognito
-    USER_POOL_ID, _, _ = get_cognito_config()
-    client = boto3_client('cognito-idp', region_name=AWS_REGION)
+    logger.info(f"[ENTRY] Login API called for username: {user.username}")
     try:
-        user_response = client.get_user(AccessToken=auth_result['AccessToken'])
-        role = DEFAULT_ROLE
-        for attr in user_response.get('UserAttributes', []):
-            if attr['Name'] == 'custom:role':
-                role = attr['Value']
-                break
-    except Exception:
-        role = DEFAULT_ROLE
-    
-    return success_response({
-        "access_token": auth_result['AccessToken'],
-        "refresh_token": auth_result['RefreshToken'],
-        "token_type": "bearer",
-        "role": role
-    }, "Login successful")
+        auth_result = authenticate_with_cognito(user.username, user.password)
+        
+        # Get user role from Cognito
+        USER_POOL_ID, _, _ = get_cognito_config()
+        client = boto3_client('cognito-idp', region_name=AWS_REGION)
+        try:
+            user_response = client.get_user(AccessToken=auth_result['AccessToken'])
+            role = DEFAULT_ROLE
+            for attr in user_response.get('UserAttributes', []):
+                if attr['Name'] == 'custom:role':
+                    role = attr['Value']
+                    break
+        except Exception:
+            role = DEFAULT_ROLE
+        
+        logger.info(f"[EXIT] Login API successful for username: {user.username}")
+        return success_response({
+            "access_token": auth_result['AccessToken'],
+            "refresh_token": auth_result['RefreshToken'],
+            "token_type": "bearer",
+            "role": role
+        }, "Login successful")
+    except HTTPException as e:
+        logger.error(f"[ERROR] Login API failed for {user.username}: {e.detail}")
+        raise
+    except Exception as e:
+        logger.error(f"[ERROR] Login API failed for {user.username}: {str(e)}")
+        handle_error(e, "login")
 
 @router.post("/refresh-token")
 def refresh_token(refresh_data: RefreshToken):
+    logger.info("[ENTRY] Refresh token API called")
     _, CLIENT_ID, CLIENT_SECRET = get_cognito_config()
     client = boto3_client('cognito-idp', region_name=AWS_REGION)
     
@@ -184,26 +209,33 @@ def refresh_token(refresh_data: RefreshToken):
             },
             ClientId=CLIENT_ID
         )
+
+        logger.info("[EXIT] Refresh token API successful")
         return success_response({
             "access_token": response['AuthenticationResult']['AccessToken'],
             "token_type": "bearer"
         }, "Token refreshed successfully")
     except Exception as e:
+        logger.error(f"[ERROR] Refresh token API failed: {str(e)}")
         handle_error(e, "refresh token")
 
 @router.post("/logout")
 def logout(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    logger.info("[ENTRY] Logout API called")
     client = boto3_client('cognito-idp', region_name=AWS_REGION)
     try:
         client.global_sign_out(AccessToken=credentials.credentials)
+        logger.info("User logged out")
     except client.exceptions.NotAuthorizedException:
         logger.info("Token already invalid or expired")
     except Exception as e:
         logger.warning(f"Logout failed: {str(e)}")
+    logger.info("[EXIT] Logout API completed")
     return success_response(message="Logged out successfully")
 
 @router.get("/users")
 def get_cognito_users(user_info: dict = Depends(require_manager)):
+    logger.info("[ENTRY] Get users API called")
     USER_POOL_ID, _, _ = get_cognito_config()
     client = boto3_client('cognito-idp', region_name=AWS_REGION)
     try:
@@ -222,12 +254,15 @@ def get_cognito_users(user_info: dict = Depends(require_manager)):
             "created": user['UserCreateDate'].isoformat(),
             "enabled": user['Enabled']
         } for user in response['Users']]
+        logger.info("[EXIT] Get users API successful")
         return success_response(users, "Users retrieved successfully")
     except Exception as e:
+        logger.error(f"[ERROR] Get users API failed: {str(e)}")
         handle_error(e, "fetch users")
 
 @router.put("/user/{target_username}/update")
 def update_user(target_username: str, user_update: UserUpdate, user_info: dict = Depends(require_admin)):
+    logger.info(f"[ENTRY] Update user API called for: {target_username}")
     USER_POOL_ID, _, _ = get_cognito_config()
     client = boto3_client('cognito-idp', region_name=AWS_REGION)
     
@@ -263,32 +298,41 @@ def update_user(target_username: str, user_update: UserUpdate, user_info: dict =
                     Username=target_username
                 )
         
+        logger.info(f"[EXIT] Update user API successful for: {target_username}")
         return success_response(message=f"User {target_username} updated successfully")
     except Exception as e:
+        logger.error(f"[ERROR] Update user API failed for {target_username}: {str(e)}")
         handle_error(e, "update user")
 
 @router.post("/user/{target_username}/enable")
 def enable_user(target_username: str, user_info: dict = Depends(require_admin)):
+    logger.info(f"[ENTRY] Enable user API called for: {target_username}")
     USER_POOL_ID, _, _ = get_cognito_config()
     client = boto3_client('cognito-idp', region_name=AWS_REGION)
     try:
         client.admin_enable_user(UserPoolId=USER_POOL_ID, Username=target_username)
+        logger.info(f"[EXIT] Enable user API successful for: {target_username}")
         return success_response(message=f"User {target_username} enabled successfully")
     except Exception as e:
+        logger.error(f"[ERROR] Enable user API failed for {target_username}: {str(e)}")
         handle_error(e, "enable user")
 
 @router.post("/user/{target_username}/disable")
 def disable_user(target_username: str, user_info: dict = Depends(require_admin)):
+    logger.info(f"[ENTRY] Disable user API called for: {target_username}")
     USER_POOL_ID, _, _ = get_cognito_config()
     client = boto3_client('cognito-idp', region_name=AWS_REGION)
     try:
         client.admin_disable_user(UserPoolId=USER_POOL_ID, Username=target_username)
+        logger.info(f"[EXIT] Disable user API successful for: {target_username}")
         return success_response(message=f"User {target_username} disabled successfully")
     except Exception as e:
+        logger.error(f"[ERROR] Disable user API failed for {target_username}: {str(e)}")
         handle_error(e, "disable user")
 
 @router.post("/user/create")
 def create_user(user_data: UserCreate, user_info: dict = Depends(require_admin)):
+    logger.info(f"[ENTRY] Create user API called for: {user_data.username}")
     USER_POOL_ID, _, _ = get_cognito_config()
     client = boto3_client('cognito-idp', region_name=AWS_REGION)
     
@@ -311,12 +355,15 @@ def create_user(user_data: UserCreate, user_info: dict = Depends(require_admin))
             TemporaryPassword=user_data.temporary_password,
             MessageAction='SUPPRESS'
         )
+        logger.info(f"[EXIT] Create user API successful for: {user_data.username}")
         return success_response(message=f"User {user_data.username} created successfully")
     except Exception as e:
+        logger.error(f"[ERROR] Create user API failed for {user_data.username}: {str(e)}")
         handle_error(e, "create user")
 
 @router.post("/user/{target_username}/reset-password")
 def reset_password(target_username: str, password_data: PasswordReset, user_info: dict = Depends(require_admin)):
+    logger.info(f"[ENTRY] Reset password API called for: {target_username}")
     USER_POOL_ID, _, _ = get_cognito_config()
     client = boto3_client('cognito-idp', region_name=AWS_REGION)
     
@@ -327,12 +374,16 @@ def reset_password(target_username: str, password_data: PasswordReset, user_info
             Password=password_data.new_temporary_password,
             Permanent=False
         )
+        logger.info(f"[EXIT] Reset password API successful for: {target_username}")
         return success_response(message=f"Temporary password reset for user {target_username}")
     except Exception as e:
+        logger.error(f"[ERROR] Reset password API failed for {target_username}: {str(e)}")
         handle_error(e, "reset password")
 
 @router.post("/user/change-password")
 def change_password(password_data: PasswordChange):
+    logger.info(f"[ENTRY] Change password API called for username: {password_data.username}")
+    
     _, CLIENT_ID, CLIENT_SECRET = get_cognito_config()
     client = boto3_client('cognito-idp', region_name=AWS_REGION)
     
@@ -362,50 +413,56 @@ def change_password(password_data: PasswordChange):
                     'SECRET_HASH': secret_hash
                 }
             )
+            logger.info(f"[EXIT] Change password API successful for user: {password_data.username}")
             return success_response(message="Password changed successfully")
         else:
+            logger.warning(f"Password change not required for user: {password_data.username}.")
             raise HTTPException(status_code=400, detail={
                 "error": "PASSWORD_CHANGE_NOT_REQUIRED",
                 "message": "Password change not required",
                 "code": "PWD_400"
             })
+    except HTTPException as e:
+        logger.error(f"[ERROR] Change password API failed for {password_data.username}: {e.detail}")
+        raise
     except Exception as e:
+        logger.error(f"[ERROR] Change password API failed for {password_data.username}: {str(e)}")
         handle_error(e, "change password")
 
-@router.post("/user/{target_username}/assign-role")
-def assign_role(target_username: str, role_data: RoleAssignment, user_info: dict = Depends(require_admin)):
-    USER_POOL_ID, _, _ = get_cognito_config()
-    client = boto3_client('cognito-idp', region_name=AWS_REGION)
+# @router.post("/user/{target_username}/assign-role")
+# def assign_role(target_username: str, role_data: RoleAssignment, user_info: dict = Depends(require_admin)):
+#     USER_POOL_ID, _, _ = get_cognito_config()
+#     client = boto3_client('cognito-idp', region_name=AWS_REGION)
     
-    try:
-        client.admin_update_user_attributes(
-            UserPoolId=USER_POOL_ID,
-            Username=target_username,
-            UserAttributes=[
-                {'Name': 'custom:role', 'Value': role_data.role}
-            ]
-        )
-        return success_response(message=f"Role '{role_data.role}' assigned to user {target_username}")
-    except Exception as e:
-        handle_error(e, "assign role")
+#     try:
+#         client.admin_update_user_attributes(
+#             UserPoolId=USER_POOL_ID,
+#             Username=target_username,
+#             UserAttributes=[
+#                 {'Name': 'custom:role', 'Value': role_data.role}
+#             ]
+#         )
+#         return success_response(message=f"Role '{role_data.role}' assigned to user {target_username}")
+#     except Exception as e:
+#         handle_error(e, "assign role")
 
-@router.get("/user/{target_username}/role")
-def get_user_role(target_username: str, user_info: dict = Depends(require_manager)):
-    USER_POOL_ID, _, _ = get_cognito_config()
-    client = boto3_client('cognito-idp', region_name=AWS_REGION)
+# @router.get("/user/{target_username}/role")
+# def get_user_role(target_username: str, user_info: dict = Depends(require_manager)):
+#     USER_POOL_ID, _, _ = get_cognito_config()
+#     client = boto3_client('cognito-idp', region_name=AWS_REGION)
     
-    try:
-        response = client.admin_get_user(
-            UserPoolId=USER_POOL_ID,
-            Username=target_username
-        )
+#     try:
+#         response = client.admin_get_user(
+#             UserPoolId=USER_POOL_ID,
+#             Username=target_username
+#         )
         
-        role = DEFAULT_ROLE  # Default role
-        for attr in response['UserAttributes']:
-            if attr['Name'] == 'custom:role':
-                role = attr['Value']
-                break
+#         role = DEFAULT_ROLE  # Default role
+#         for attr in response['UserAttributes']:
+#             if attr['Name'] == 'custom:role':
+#                 role = attr['Value']
+#                 break
         
-        return success_response({'username': target_username, 'role': role}, "User role retrieved successfully")
-    except Exception as e:
-        handle_error(e, "get user role")
+#         return success_response({'username': target_username, 'role': role}, "User role retrieved successfully")
+#     except Exception as e:
+#         handle_error(e, "get user role")

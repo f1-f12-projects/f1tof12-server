@@ -1,10 +1,17 @@
-__version__ = "1.2.1"
+__version__ = "1.2.2"
 __major_version__ = 1
 __minor_version__ = 2
-__patch_version__ = 1
+__patch_version__ = 2
 
 # Latest version should be on top
 __changelog__ = {
+    "1.2.2": [
+        "Added filename & method name to the log output.",
+        "auth: Fixed issue where admin role requires manager role and not all roles.",
+        "Users: Fixed issue with password reset return code.",
+        "Added new file to get updated change log based on git changes.",
+        "Enhanced error handling in scripts/utils/response.py"
+    ],
     "1.2.1": [
         "Added manager role access to invoice APIs",
         "Optimized SQLiteAdapter with helper methods",

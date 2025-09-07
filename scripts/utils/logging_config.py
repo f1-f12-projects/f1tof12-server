@@ -12,7 +12,7 @@ if not os.environ.get('AWS_LAMBDA_FUNCTION_NAME'):
         maxBytes=1024*1024*1024,  # 1GB
         backupCount=5
     )
-    handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+    handler.setFormatter(logging.Formatter('%(asctime)s [%(filename)s:%(funcName)s:%(levelname)s] - %(message)s'))
     
     logging.basicConfig(
         level=logging.INFO,
