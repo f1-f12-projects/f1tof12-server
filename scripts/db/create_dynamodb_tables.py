@@ -1,6 +1,6 @@
 import boto3
 from botocore.exceptions import ClientError
-from scripts.db.config import AWS_REGION, USERS_TABLE, COMPANIES_TABLE, SPOCS_TABLE, INVOICES_TABLE
+from scripts.db.config import AWS_REGION, USERS_TABLE, COMPANIES_TABLE, SPOCS_TABLE, INVOICES_TABLE, REQUIREMENTS_TABLE, COUNTERS_TABLE, CANDIDATES_TABLE
 
 def create_dynamodb_tables():
     dynamodb = boto3.resource('dynamodb', region_name=AWS_REGION)
@@ -27,7 +27,17 @@ def create_dynamodb_tables():
             'type': 'N'
         },
         {
-            'name': 'f1tof12-counters',
+            'name': REQUIREMENTS_TABLE,
+            'key': 'requirement_id',
+            'type': 'N'
+        },
+        {
+            'name': CANDIDATES_TABLE,
+            'key': 'candidate_id',
+            'type': 'N'
+        },
+        {
+            'name': COUNTERS_TABLE,
             'key': 'table_name',
             'type': 'S'
         }

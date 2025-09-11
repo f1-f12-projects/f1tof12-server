@@ -35,6 +35,33 @@ class SPOC(Base):
     
     company = relationship("Company")
 
+class RequirementStatus(Base):
+    __tablename__ = "requirement_status"
+    id = Column(Integer, primary_key=True, index=True)
+    status = Column(String, unique=True, index=True)
+
+class CandidateStatus(Base):
+    __tablename__ = "candidate_status"
+    id = Column(Integer, primary_key=True, index=True)
+    status = Column(String, unique=True, index=True)
+
+class Requirement(Base):
+    __tablename__ = "requirements"
+    requirement_id = Column(Integer, primary_key=True, index=True)
+    date_created = Column(Date, default=lambda: datetime.now(timezone.utc).date())
+    account_id = Column(Integer, ForeignKey("companies.id"))
+    key_skill = Column(String)
+    jd = Column(String)
+    status_id = Column(Integer, ForeignKey("requirement_status.id"))
+    recruiter_name = Column(String)
+    date_closed = Column(Date)
+    budget = Column(Float)
+    expected_billing_date = Column(Date)
+    remarks = Column(String)
+    
+    account = relationship("Company")
+    status = relationship("RequirementStatus")
+
 class Invoice(Base):
     __tablename__ = "invoices"
     id = Column(Integer, primary_key=True, index=True)
