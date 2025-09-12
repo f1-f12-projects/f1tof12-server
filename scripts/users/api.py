@@ -24,35 +24,50 @@ def calculate_secret_hash(username: str, client_id: str, client_secret: str):
     return b64encode(dig).decode()
 
 def get_cognito_config():
-    # Try environment variables first
-    user_pool_id = getenv('COGNITO_USER_POOL_ID')
-    client_id = getenv('COGNITO_CLIENT_ID')
-    client_secret = getenv('COGNITO_CLIENT_SECRET')
+    from scripts.constants import ENVIRONMENT
     
-    if user_pool_id and client_id and client_secret:
-        return user_pool_id, client_id, client_secret
+    # Get customer for multi-tenant support
+    customer = getenv('CUSTOMER', '')
+    path_prefix = f'/f1tof12/{ENVIRONMENT}/{customer}' if customer else f'/f1tof12/{ENVIRONMENT}'
     
-    # Fallback to Parameter Store
+    # Get from Parameter Store
     ssm = boto3_client('ssm')
     try:
-        response = ssm.get_parameters(
-            Names=['/f1tof12/cognito/user-pool-id', '/f1tof12/cognito/client-id', '/f1tof12/cognito/client-secret'],
-            WithDecryption=True
-        )
+        param_names = [
+            f'{path_prefix}/cognito/user-pool-id',
+            f'{path_prefix}/cognito/client-id',
+            f'{path_prefix}/cognito/client-secret'
+        ]
+
+        response = ssm.get_parameters(Names=param_names, WithDecryption=True)
+        
         params = {p['Name']: p['Value'] for p in response['Parameters']}
-        return params['/f1tof12/cognito/user-pool-id'], params['/f1tof12/cognito/client-id'], params['/f1tof12/cognito/client-secret']
-    except ssm.exceptions.ParameterNotFound as e:
-        logger.error(f"SSM Parameter not found: {e}")
-        raise HTTPException(status_code=500, detail="Cognito configuration missing")
+        
+        # Check if all parameters were found
+        missing = [name for name in param_names if name not in params]
+        if missing:
+            logger.error(f"Missing SSM parameters: {missing}")
+            logger.error(f"Found parameters: {list(params.keys())}")
+            raise HTTPException(status_code=500, detail=f"Missing parameters: {missing}")
+            
+        return (
+            params[param_names[0]],
+            params[param_names[1]],
+            params[param_names[2]]
+        )
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"SSM error: {e}")
-        raise HTTPException(status_code=500, detail="Failed to retrieve Cognito credentials")
+        logger.error(f"SSM Parameter error for {ENVIRONMENT}/{customer}: {e}")
+        raise HTTPException(status_code=500, detail=f"Cognito configuration error for {ENVIRONMENT}/{customer}")
 
 def authenticate_with_cognito(username: str, password: str):
     USER_POOL_ID, CLIENT_ID, CLIENT_SECRET = get_cognito_config()
+    if not USER_POOL_ID or not CLIENT_ID or not CLIENT_SECRET:
+        raise HTTPException(status_code=500, detail="Failed to authenticate. Please check the server configuration.")
     
     client = boto3_client('cognito-idp', region_name=AWS_REGION)
-    logger.debug(f"Created client for {AWS_REGION} region")
+    logger.debug(f"Created client")
     
     secret_hash = calculate_secret_hash(username, CLIENT_ID, CLIENT_SECRET)
     
@@ -199,6 +214,10 @@ def refresh_token(refresh_data: RefreshToken):
     logger.info("[ENTRY] Refresh token API called")
     _, CLIENT_ID, CLIENT_SECRET = get_cognito_config()
     client = boto3_client('cognito-idp', region_name=AWS_REGION)
+
+    if CLIENT_ID is None or CLIENT_SECRET is None:
+        logger.error("[ERROR] Refresh token API failed: Cognito configuration not set")
+        raise HTTPException(status_code=500, detail="Token is not refreshed. Please check the server configuration.")
     
     try:
         response = client.initiate_auth(
@@ -386,6 +405,10 @@ def change_password(password_data: PasswordChange):
     
     _, CLIENT_ID, CLIENT_SECRET = get_cognito_config()
     client = boto3_client('cognito-idp', region_name=AWS_REGION)
+
+    if CLIENT_ID is None or CLIENT_SECRET is None:
+        logger.error("[ERROR] Refresh token API failed: Cognito configuration not set")
+        raise HTTPException(status_code=500, detail="Token is not refreshed. Please check the server configuration.")
     
     secret_hash = calculate_secret_hash(password_data.username, CLIENT_ID, CLIENT_SECRET)
     

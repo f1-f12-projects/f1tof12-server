@@ -7,7 +7,11 @@ from scripts.invoices.api import router as invoice_router
 from scripts.requirements.api import router as requirements_router
 from scripts.profiles.api import router as profiles_router
 from version import __version__, __changelog__
+from load_env import load_environment
 import logging
+
+# Load environment configuration
+load_environment()
 
 logging.getLogger().setLevel(logging.INFO)
 logger = logging.getLogger(__name__)
