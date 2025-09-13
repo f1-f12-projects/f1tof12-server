@@ -140,6 +140,14 @@ class UserUpdate(BaseModel):
     given_name: Optional[str] = None
     family_name: Optional[str] = None
     status: Optional[str] = None
+    role: Optional[str] = None
+    
+    @field_validator('role')
+    @classmethod
+    def validate_role(cls, v):
+        if v is not None and v not in ALLOWED_ROLES:
+            raise ValueError(f'Role must be one of: {ALLOWED_ROLES}')
+        return v
 
 class UserCreate(BaseModel):
     username: str
@@ -166,15 +174,7 @@ class PasswordChange(BaseModel):
     temporary_password: str
     new_password: str
 
-class RoleAssignment(BaseModel):
-    role: str
-    
-    @field_validator('role')
-    @classmethod
-    def validate_role(cls, v):
-        if v not in ALLOWED_ROLES:
-            raise ValueError(f'Role must be one of: {ALLOWED_ROLES}')
-        return v
+
 
 @router.post("/login", status_code=status.HTTP_200_OK)
 def login(user: UserLogin):
@@ -296,6 +296,8 @@ def update_user(target_username: str, user_update: UserUpdate, user_info: dict =
             attributes.append({'Name': 'given_name', 'Value': user_update.given_name})
         if user_update.family_name:
             attributes.append({'Name': 'family_name', 'Value': user_update.family_name})
+        if user_update.role:
+            attributes.append({'Name': 'custom:role', 'Value': user_update.role})
         
         if attributes:
             client.admin_update_user_attributes(
@@ -365,6 +367,7 @@ def create_user(user_data: UserCreate, user_info: dict = Depends(require_admin))
             attributes.append({'Name': 'phone_number', 'Value': user_data.phone_number})
         # Set role (default to recruiter if not provided)
         role = user_data.role or DEFAULT_ROLE
+        logger.info(f"Setting role for user {user_data.username}: {role}")
         attributes.append({'Name': 'custom:role', 'Value': role})
         
         client.admin_create_user(
@@ -452,40 +455,4 @@ def change_password(password_data: PasswordChange):
         logger.error(f"[ERROR] Change password API failed for {password_data.username}: {str(e)}")
         handle_error(e, "change password")
 
-# @router.post("/user/{target_username}/assign-role")
-# def assign_role(target_username: str, role_data: RoleAssignment, user_info: dict = Depends(require_admin)):
-#     USER_POOL_ID, _, _ = get_cognito_config()
-#     client = boto3_client('cognito-idp', region_name=AWS_REGION)
-    
-#     try:
-#         client.admin_update_user_attributes(
-#             UserPoolId=USER_POOL_ID,
-#             Username=target_username,
-#             UserAttributes=[
-#                 {'Name': 'custom:role', 'Value': role_data.role}
-#             ]
-#         )
-#         return success_response(message=f"Role '{role_data.role}' assigned to user {target_username}")
-#     except Exception as e:
-#         handle_error(e, "assign role")
 
-# @router.get("/user/{target_username}/role")
-# def get_user_role(target_username: str, user_info: dict = Depends(require_manager)):
-#     USER_POOL_ID, _, _ = get_cognito_config()
-#     client = boto3_client('cognito-idp', region_name=AWS_REGION)
-    
-#     try:
-#         response = client.admin_get_user(
-#             UserPoolId=USER_POOL_ID,
-#             Username=target_username
-#         )
-        
-#         role = DEFAULT_ROLE  # Default role
-#         for attr in response['UserAttributes']:
-#             if attr['Name'] == 'custom:role':
-#                 role = attr['Value']
-#                 break
-        
-#         return success_response({'username': target_username, 'role': role}, "User role retrieved successfully")
-#     except Exception as e:
-#         handle_error(e, "get user role")

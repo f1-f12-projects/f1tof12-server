@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, field_validator
 from scripts.db.database_factory import get_database
-from auth import require_manager
+from auth import require_manager, require_finance_or_manager
 from scripts.utils.response import success_response, handle_error
 from scripts.constants import USER_STATUS_ACTIVE, USER_STATUS_INACTIVE
 import logging
@@ -51,7 +51,7 @@ def register(company: CompanyCreate, user_info: dict = Depends(require_manager))
         handle_error(e, "register company")
 
 @router.get("/customer/list")
-def list_companies(user_info: dict = Depends(require_manager)):
+def list_companies(user_info: dict = Depends(require_finance_or_manager)):
     logger.info("Entering list_companies method")
     try:
         db = get_database()

@@ -1,10 +1,14 @@
-__version__ = "1.2.2"
+__version__ = "1.2.3"
 __major_version__ = 1
 __minor_version__ = 2
-__patch_version__ = 2
+__patch_version__ = 3
 
 # Latest version should be on top
 __changelog__ = {
+    "1.2.3": [
+        "Enhanced error handling for users",
+        "Updated authentication for Finance users to fetch customers"
+    ],
     "1.2.2": [
         "Added filename & method name to the log output.",
         "auth: Fixed issue where admin role requires manager role and not all roles.",
