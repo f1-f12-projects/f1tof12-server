@@ -36,6 +36,8 @@ Resources:
       Handler: lambda_handler.handler
       Environment:
         Variables:
+          ENVIRONMENT: prod
+          CUSTOMER: vst
           COGNITO_USER_POOL_ID: !Ref CognitoUserPoolId
           COGNITO_CLIENT_ID: !Ref CognitoClientId
           USE_DYNAMODB: true
@@ -66,7 +68,7 @@ Resources:
               Action:
                 - ssm:GetParameter
                 - ssm:GetParameters
-              Resource: "arn:aws:ssm:ap-south-1:*:parameter/f1tof12/cognito/*"
+              Resource: "arn:aws:ssm:us-east-1:*:parameter/f1tof12/*"
             - Effect: Allow
               Action:
                 - dynamodb:GetItem

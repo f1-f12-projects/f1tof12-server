@@ -30,8 +30,8 @@ def get_cognito_config():
     customer = getenv('CUSTOMER', '')
     path_prefix = f'/f1tof12/{ENVIRONMENT}/{customer}' if customer else f'/f1tof12/{ENVIRONMENT}'
     
-    # Get from Parameter Store
-    ssm = boto3_client('ssm')
+    # Get from Parameter Store (parameters are in us-east-1)
+    ssm = boto3_client('ssm', region_name='us-east-1')
     try:
         param_names = [
             f'{path_prefix}/cognito/user-pool-id',

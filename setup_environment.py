@@ -9,13 +9,11 @@ def setup_local():
     print("✅ Local environment configured (SQLite)")
     print(f"Database: {os.getenv('DB_FILE_NAME', 'f1tof12.db')}")
 
-def setup_server():
-    """Setup for server deployment with DynamoDB"""
-    load_dotenv('.env.server')
-    print("✅ Server environment configured (DynamoDB)")
-    print(f"Region: {os.getenv('AWS_REGION')}")
-    print(f"Users Table: {os.getenv('USERS_TABLE')}")
-    print(f"Companies Table: {os.getenv('COMPANIES_TABLE')}")
+def setup_prod():
+    """Setup for production deployment with DynamoDB"""
+    print("✅ Production environment configured (DynamoDB)")
+    print(f"Region: ap-south-1")
+    print(f"Tables: Managed by CloudFormation")
     
     # Create DynamoDB tables
     try:
@@ -29,7 +27,7 @@ if __name__ == "__main__":
     
     if env == "local":
         setup_local()
-    elif env == "server":
-        setup_server()
+    elif env == "prod":
+        setup_prod()
     else:
-        print("Usage: python setup_environment.py [local|server]")
+        print("Usage: python setup_environment.py [local|prod]")
