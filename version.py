@@ -1,10 +1,16 @@
-__version__ = "1.2.3"
+__version__ = "1.3.0"
 __major_version__ = 1
-__minor_version__ = 2
-__patch_version__ = 3
+__minor_version__ = 3
+__patch_version__ = 0
 
 # Latest version should be on top
 __changelog__ = {
+    "1.3.0": [
+        "Cleaned up deployment configuration",
+        "Removed unused Docker and Serverless Framework files",
+        "Simplified environment configuration for production",
+        "Fixed cross-region SSM parameter access"
+    ],
     "1.2.3": [
         "Enhanced error handling for users",
         "Updated authentication for Finance users to fetch customers"
