@@ -1,10 +1,16 @@
-__version__ = "1.3.0"
+__version__ = "1.4.0"
 __major_version__ = 1
-__minor_version__ = 3
+__minor_version__ = 4
 __patch_version__ = 0
 
 # Latest version should be on top
 __changelog__ = {
+    "1.4.0": [
+        "Removed CloudFront-related files and configurations",
+        "Cleaned up deployment files for Lambda-only architecture",
+        "Removed Docker and Serverless Framework dependencies",
+        "APIs can now only be accessed via API Gateway endpoints"
+    ],
     "1.3.0": [
         "Cleaned up deployment configuration",
         "Removed unused Docker and Serverless Framework files",

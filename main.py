@@ -6,9 +6,11 @@ from scripts.spoc.api import router as spoc_router
 from scripts.invoices.api import router as invoice_router
 from scripts.requirements.api import router as requirements_router
 from scripts.profiles.api import router as profiles_router
+from scripts.utils.cloudfront_middleware import CloudFrontMiddleware
 from version import __version__, __changelog__
 from load_env import load_environment
 import logging
+import os
 
 # Load environment configuration
 load_environment()
@@ -26,10 +28,14 @@ app.include_router(invoice_router)
 app.include_router(requirements_router)
 app.include_router(profiles_router)
 
+# Add CloudFront restriction middleware (only in production)
+if os.getenv('ENVIRONMENT') == 'prod':
+    app.add_middleware(CloudFrontMiddleware)
+
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["https://f1tof12.com", "https://www.f1tof12.com"] if os.getenv('ENVIRONMENT') == 'prod' else ["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

@@ -1,13 +1,7 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 
-Parameters:
-  CognitoUserPoolId:
-    Type: AWS::SSM::Parameter::Value<String>
-    Default: /f1tof12/cognito/user-pool-id
-  CognitoClientId:
-    Type: AWS::SSM::Parameter::Value<String>
-    Default: /f1tof12/cognito/client-id
+# CloudFront secret fetched at runtime from SSM
 
 Globals:
   Function:
@@ -38,8 +32,8 @@ Resources:
         Variables:
           ENVIRONMENT: prod
           CUSTOMER: vst
-          COGNITO_USER_POOL_ID: !Ref CognitoUserPoolId
-          COGNITO_CLIENT_ID: !Ref CognitoClientId
+          # Cognito config fetched at runtime from us-east-1
+          # CloudFront secret fetched at runtime from SSM
           USE_DYNAMODB: true
           USERS_TABLE: !Ref UsersTable
           COMPANIES_TABLE: !Ref CompaniesTable
@@ -68,7 +62,9 @@ Resources:
               Action:
                 - ssm:GetParameter
                 - ssm:GetParameters
-              Resource: "arn:aws:ssm:us-east-1:*:parameter/f1tof12/*"
+              Resource: 
+                - "arn:aws:ssm:us-east-1:*:parameter/f1tof12/*"
+                - "arn:aws:ssm:ap-south-1:*:parameter/f1tof12/*"
             - Effect: Allow
               Action:
                 - dynamodb:GetItem
