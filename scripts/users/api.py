@@ -26,6 +26,22 @@ def calculate_secret_hash(username: str, client_id: str, client_secret: str):
 def get_cognito_config():
     from scripts.constants import ENVIRONMENT
     
+    # Use environment variables in dev, SSM in production
+    if ENVIRONMENT == 'dev':
+        user_pool_id = getenv('COGNITO_USER_POOL_ID')
+        client_id = getenv('COGNITO_CLIENT_ID')
+        client_secret = getenv('COGNITO_CLIENT_SECRET')
+        
+        if not all([user_pool_id, client_id, client_secret]):
+            missing = [k for k, v in {
+                'COGNITO_USER_POOL_ID': user_pool_id,
+                'COGNITO_CLIENT_ID': client_id, 
+                'COGNITO_CLIENT_SECRET': client_secret
+            }.items() if not v]
+            raise HTTPException(status_code=500, detail=f"Missing env variables: {missing}")
+        
+        return user_pool_id, client_id, client_secret
+    
     # Get customer for multi-tenant support
     customer = getenv('CUSTOMER', '')
     path_prefix = f'/f1tof12/{ENVIRONMENT}/{customer}' if customer else f'/f1tof12/{ENVIRONMENT}'
@@ -180,6 +196,7 @@ class PasswordChange(BaseModel):
 def login(user: UserLogin):
     logger.info(f"[ENTRY] Login API called for username: {user.username}")
     try:
+        # Use Cognito authentication
         auth_result = authenticate_with_cognito(user.username, user.password)
         
         # Get user role from Cognito

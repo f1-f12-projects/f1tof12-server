@@ -1,10 +1,14 @@
-__version__ = "1.4.0"
+__version__ = "1.4.1"
 __major_version__ = 1
 __minor_version__ = 4
-__patch_version__ = 0
+__patch_version__ = 1
 
 # Latest version should be on top
 __changelog__ = {
+    "1.4.1": [
+        "Fixed CloudFront middleware to correctly bypass origin checks for health and root endpoints",
+        "Ensured CloudFront secret validation is skipped in non-production environments"
+    ],
     "1.4.0": [
         "Removed CloudFront-related files and configurations",
         "Cleaned up deployment files for Lambda-only architecture",
