@@ -20,13 +20,11 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(title="F1toF12 API", debug=True)
 
-# Include routers
-app.include_router(customer_router)
-app.include_router(users_router)
-app.include_router(spoc_router)
-app.include_router(invoice_router)
-app.include_router(requirements_router)
-app.include_router(profiles_router)
+# Include routers with customer prefix
+customer_prefix = f"/{os.getenv('CUSTOMER', 'f1tof12')}"
+routers = [customer_router, users_router, spoc_router, invoice_router, requirements_router, profiles_router]
+for router in routers:
+    app.include_router(router, prefix=customer_prefix)
 
 # Add CloudFront restriction middleware (only in production)
 if os.getenv('ENVIRONMENT') == 'prod':
@@ -45,11 +43,11 @@ app.add_middleware(
 async def startup_event():
     logger.info("F1toF12 API starting up")
 
-@app.get("/")
+@app.get(f"/{os.getenv('CUSTOMER', 'f1tof12')}/")
 def root():
-    return {"message": "F1toF12 API", "version": __version__, "endpoints": ["/login", "/health"]}
+    return {"message": "F1toF12 API", "version": __version__, "endpoints": ["/vst/login", "/vst/health"]}
 
-@app.get("/version")
+@app.get(f"/{os.getenv('CUSTOMER', 'f1tof12')}/version")
 def get_version():
     # Get version history to determine type
     versions = list(__changelog__.keys())
@@ -78,7 +76,7 @@ def get_version():
         "changelog": __changelog__[__version__]
     }
 
-@app.get("/health")
+@app.get(f"/{os.getenv('CUSTOMER', 'f1tof12')}/health")
 def health_check():
     return {"status": "ok", "message": "F1toF12 API is running"}
 
