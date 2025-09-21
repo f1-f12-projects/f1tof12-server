@@ -1,10 +1,17 @@
-__version__ = "1.4.1"
-__major_version__ = 1
-__minor_version__ = 4
-__patch_version__ = 1
+__version__ = "2.0.0"
+__major_version__ = 2
+__minor_version__ = 0
+__patch_version__ = 0
 
 # Latest version should be on top
 __changelog__ = {
+    "2.0.0": [
+        "Added CloudFront middleware security layer to restrict API access",
+        "Implemented dual validation: CloudFront secret header and origin verification",
+        "APIs now only accessible from f1tof12.com domain through CloudFront",
+        "Enhanced CORS configuration to support custom security headers",
+        "Fixed CloudFront header forwarding for Authorization tokens"
+    ],
     "1.4.1": [
         "Fixed CloudFront middleware to correctly bypass origin checks for health and root endpoints",
         "Ensured CloudFront secret validation is skipped in non-production environments"

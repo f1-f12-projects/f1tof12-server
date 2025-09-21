@@ -4,6 +4,7 @@ import boto3
 from functools import wraps
 from typing import List, Optional
 from scripts.constants import AWS_REGION, ALLOWED_ROLES, DEFAULT_ROLE, ROLES, FINANCE_ROLE, LEAD_ROLE, MANAGER_ROLE, RECRUITER_ROLE
+
 security = HTTPBearer()
 
 def get_user_info(credentials: HTTPAuthorizationCredentials = Depends(security)):
@@ -16,12 +17,16 @@ def get_user_info(credentials: HTTPAuthorizationCredentials = Depends(security))
             if attr['Name'] == 'custom:role':
                 role = attr['Value']
                 break
-        return {
+        
+        user_info = {
             'username': response['Username'],
-            'role': role or DEFAULT_ROLE,  # Default role
+            'role': role or DEFAULT_ROLE,
             'attributes': response.get('UserAttributes', [])
         }
-    except Exception:
+
+        return user_info
+    except Exception as e:
+
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid Cognito token")
 
 def verify_cognito_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
@@ -31,11 +36,14 @@ def verify_cognito_token(credentials: HTTPAuthorizationCredentials = Depends(sec
 def require_roles(allowed_roles: List[str]):
     def decorator(credentials: HTTPAuthorizationCredentials = Depends(security)):
         user_info = get_user_info(credentials)
+
         if user_info['role'] not in allowed_roles:
+
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN, 
                 detail=f"Access denied. Required roles: {allowed_roles}"
             )
+
         return user_info
     return decorator
 
