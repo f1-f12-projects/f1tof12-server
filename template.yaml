@@ -12,7 +12,7 @@ Globals:
       AllowOrigins:
         - "http://localhost:3000"
         - "https://f1tof12.com"
-        - "https://zhijjc4ru2.execute-api.ap-south-1.amazonaws.com/"
+        - "https://sz8wal44w0.execute-api.ap-south-1.amazonaws.com"
       AllowHeaders:
         - "Content-Type"
         - "Authorization"
@@ -23,11 +23,19 @@ Globals:
         - "DELETE"
 
 Resources:
+  F1toF12LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /aws/lambda/f1tof12-api-logs
+      RetentionInDays: 14
+
   F1toF12API:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: .
       Handler: lambda_handler.handler
+      LoggingConfig:
+        LogGroup: !Ref F1toF12LogGroup
       Environment:
         Variables:
           ENVIRONMENT: prod

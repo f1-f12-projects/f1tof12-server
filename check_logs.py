@@ -3,38 +3,27 @@ import json
 from datetime import datetime, timedelta, timezone
 
 def get_lambda_logs():
-    logs_client = boto3.client('logs')
-    
-    # Get log group for the Lambda function
-    log_group = '/aws/lambda/f1tof12-server-F1toF12API-*'
+    logs_client = boto3.client('logs')  # type: ignore
     
     try:
-        # List log groups to find the exact name
-        response = logs_client.describe_log_groups(logGroupNamePrefix='/aws/lambda/f1tof12-server')
+        target_log_group = '/aws/lambda/f1tof12-api-logs'
+        print(f"Checking logs from: {target_log_group}")
         
-        if response['logGroups']:
-            log_group_name = response['logGroups'][0]['logGroupName']
-            print(f"Found log group: {log_group_name}")
-            
-            # Get recent logs
-            end_time = datetime.now(timezone.utc)
-            start_time = end_time - timedelta(days=7)  # Expand to 7 days
-            
-            print(f"Searching logs from {start_time} to {end_time}")
-            
-            logs_response = logs_client.filter_log_events(
-                logGroupName=log_group_name,
-                startTime=int(start_time.timestamp() * 1000),
-                endTime=int(end_time.timestamp() * 1000)
-            )
-            
-            print(f"Found {len(logs_response['events'])} log events")
-            print("\n=== Recent Lambda Logs ===")
-            for event in logs_response['events'][-50:]:  # Last 50 events
-                timestamp = datetime.fromtimestamp(event['timestamp'] / 1000, tz=timezone.utc)
-                print(f"[{timestamp}] {event['message']}", end="")
-        else:
-            print("No log groups found")
+        # Get recent logs
+        end_time = datetime.now(timezone.utc)
+        start_time = end_time - timedelta(days=7)
+        
+        logs_response = logs_client.filter_log_events(  # type: ignore
+            logGroupName=target_log_group,
+            startTime=int(start_time.timestamp() * 1000),
+            endTime=int(end_time.timestamp() * 1000)
+        )
+        
+        print(f"Found {len(logs_response['events'])} log events")
+        print("\n=== Recent Lambda Logs ===")
+        for event in logs_response['events'][-50:]:
+            timestamp = datetime.fromtimestamp(event['timestamp'] / 1000, tz=timezone.utc)
+            print(f"[{timestamp}] {event['message']}", end="")
             
     except Exception as e:
         print(f"Error getting logs: {e}")
