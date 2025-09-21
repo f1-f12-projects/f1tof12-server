@@ -16,6 +16,8 @@ Globals:
       AllowHeaders:
         - "Content-Type"
         - "Authorization"
+        - "x-origin"
+        - "x-cloudfront-secret"
       AllowMethods:
         - "GET"
         - "POST"

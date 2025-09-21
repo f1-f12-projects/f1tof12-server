@@ -36,7 +36,8 @@ app.add_middleware(
     allow_origins=["https://f1tof12.com", "https://www.f1tof12.com"] if os.getenv('ENVIRONMENT') == 'prod' else ["*"],
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["*"],
+    allow_headers=["*", "x-origin", "x-cloudfront-secret"],
+    expose_headers=["X-CloudFront-Secret"],
 )
 
 @app.on_event("startup")

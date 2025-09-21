@@ -40,19 +40,16 @@ class CloudFrontMiddleware:
                 await self.app(scope, receive, send)
                 return
                 
-            # Check CloudFront secret header (if present)
+            # Check headers
+            origin = request.headers.get("origin") or request.headers.get("x-origin")
             cloudfront_secret = request.headers.get("x-cloudfront-secret")
-            if cloudfront_secret and cloudfront_secret != self.cloudfront_secret:
-                response = JSONResponse(
-                    status_code=403,
-                    content={"error": "Access denied"}
-                )
-                await response(scope, receive, send)
+            
+            # Require both CloudFront secret AND allowed origin
+            if (cloudfront_secret == self.cloudfront_secret and 
+                origin and origin in self.allowed_origins):
+                await self.app(scope, receive, send)
                 return
-                
-            # Check Origin header
-            origin = request.headers.get("origin")
-            if origin and origin not in self.allowed_origins:
+            else:
                 response = JSONResponse(
                     status_code=403,
                     content={"error": "Access denied"}
