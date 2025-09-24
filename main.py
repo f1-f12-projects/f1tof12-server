@@ -1,5 +1,7 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from scripts.customer.api import router as customer_router
 from scripts.users.api import router as users_router
 from scripts.spoc.api import router as spoc_router
@@ -19,6 +21,17 @@ logging.getLogger().setLevel(logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="F1toF12 API", debug=True)
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    errors = [
+        f"{error['loc'][-1] if error['loc'] else 'field'} is required" if error['type'] == 'missing' else error['msg']
+        for error in exc.errors()
+    ]
+    return JSONResponse(
+        status_code=400,
+        content={"detail": errors[0] if len(errors) == 1 else errors}
+    )
 
 # Include routers with customer prefix
 customer_prefix = f"/{os.getenv('CUSTOMER', 'f1tof12')}"

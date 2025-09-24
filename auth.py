@@ -36,15 +36,16 @@ def verify_cognito_token(credentials: HTTPAuthorizationCredentials = Depends(sec
 def require_roles(allowed_roles: List[str]):
     def decorator(credentials: HTTPAuthorizationCredentials = Depends(security)):
         user_info = get_user_info(credentials)
+        user_role = user_info['role']
+        
+        # Manager role has access to all other roles
+        if user_role == ROLES[MANAGER_ROLE] or user_role in allowed_roles:
+            return user_info
 
-        if user_info['role'] not in allowed_roles:
-
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN, 
-                detail=f"Access denied. Required roles: {allowed_roles}"
-            )
-
-        return user_info
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, 
+            detail=f"Access denied. Required roles: {allowed_roles}"
+        )
     return decorator
 
 # Business role dependencies

@@ -1,40 +1,61 @@
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from scripts.db.database_factory import get_database
 from auth import require_lead, require_lead_or_recruiter
 from scripts.utils.response import success_response, handle_error
+from .validation import validate_requirement_fields
 from typing import Optional
-from datetime import date
+from datetime import date, datetime
+from zoneinfo import ZoneInfo
 
 router = APIRouter(prefix="/requirements", tags=["requirements"])
 
 class RequirementCreate(BaseModel):
-    title: str
-    description: str
-    company_id: int
-    skills_required: str
-    experience_level: str
-    location: str
-    budget: Optional[float] = None
-    deadline: Optional[date] = None
-    status: str = "open"
+    key_skill: str = Field(alias="key_skill")
+    jd: str = Field(alias="jd")
+    company_id: int = Field(alias="company_id")
+    experience_level: str = Field(alias="experience_level")
+    location: str = Field(alias="location")
+    budget: Optional[float] = Field(None, alias="budget")
+    expected_billing_date: Optional[date] = Field(None, alias="expected_billing_date")
+    status_id: int = Field(1, alias="status")
+    req_cust_ref_id: Optional[str] = Field(None, alias="req_cust_ref_id")
+    created_date: Optional[datetime] = Field(None, alias="created_date")
+    
+    class Config:
+        allow_population_by_field_name = True
 
 class RequirementUpdate(BaseModel):
-    title: Optional[str] = None
-    description: Optional[str] = None
-    skills_required: Optional[str] = None
+    key_skill: Optional[str] = None
+    jd: Optional[str] = None
     experience_level: Optional[str] = None
     location: Optional[str] = None
     budget: Optional[float] = None
-    deadline: Optional[date] = None
+    expected_billing_date: Optional[date] = None
     status: Optional[str] = None
+    req_cust_ref_id: Optional[str] = None
 
 @router.post("/add")
 def add_requirement(requirement: RequirementCreate, user_info: dict = Depends(require_lead)):
     try:
+        validate_requirement_fields(requirement)
+        requirement_dict = requirement.dict()
+        # Set created_date to current IST time if not provided
+        if not requirement_dict.get('created_date'):
+            requirement_dict['created_date'] = datetime.now(ZoneInfo('Asia/Kolkata'))
+        
+        # Map experience_level to remarks for database
+        requirement_dict['remarks'] = requirement_dict.pop('experience_level')
+        
+        # Map status to status_id for database
+        if 'status' in requirement_dict:
+            requirement_dict['status_id'] = requirement_dict.pop('status')
+        
         db = get_database()
-        requirement_data = db.create_requirement(requirement.dict())
+        requirement_data = db.create_requirement(requirement_dict)
         return success_response(requirement_data, "Requirement added successfully")
+    except HTTPException:
+        raise
     except Exception as e:
         handle_error(e, "add requirement")
 

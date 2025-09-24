@@ -48,18 +48,21 @@ class CandidateStatus(Base):
 class Requirement(Base):
     __tablename__ = "requirements"
     requirement_id = Column(Integer, primary_key=True, index=True)
-    date_created = Column(Date, default=lambda: datetime.now(timezone.utc).date())
-    account_id = Column(Integer, ForeignKey("companies.id"))
+    created_date = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    company_id = Column(Integer, ForeignKey("companies.id"))
     key_skill = Column(String)
     jd = Column(String)
     status_id = Column(Integer, ForeignKey("requirement_status.id"))
     recruiter_name = Column(String)
-    date_closed = Column(Date)
+    closed_date = Column(DateTime)
     budget = Column(Float)
     expected_billing_date = Column(Date)
+    location = Column(String)
     remarks = Column(String)
+    req_cust_ref_id = Column(String)
+    updated_date = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     
-    account = relationship("Company")
+    company = relationship("Company")
     status = relationship("RequirementStatus")
 
 class Invoice(Base):

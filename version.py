@@ -1,10 +1,13 @@
-__version__ = "2.0.0"
+__version__ = "2.1.0"
 __major_version__ = 2
-__minor_version__ = 0
+__minor_version__ = 1
 __patch_version__ = 0
 
 # Latest version should be on top
 __changelog__ = {
+    "2.1.0": [
+        "Added APIs to handle Requirements"
+    ],
     "2.0.0": [
         "Added CloudFront middleware security layer to restrict API access",
         "Implemented dual validation: CloudFront secret header and origin verification",

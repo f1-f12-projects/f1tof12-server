@@ -54,6 +54,18 @@ class DatabaseInterface(ABC):
     @abstractmethod
     def update_invoice(self, invoice_id: int, update_data: Dict[str, Any]) -> bool:
         pass
+    
+    @abstractmethod
+    def create_requirement(self, requirement_data: Dict[str, Any]) -> Dict[str, Any]:
+        pass
+    
+    @abstractmethod
+    def list_requirements(self) -> List[Dict[str, Any]]:
+        pass
+    
+    @abstractmethod
+    def update_requirement(self, requirement_id: int, update_data: Dict[str, Any]) -> bool:
+        pass
 
 def get_database() -> DatabaseInterface:
     """Factory function to return appropriate database implementation"""

@@ -3,7 +3,7 @@ from typing import Optional, List, Dict, Any
 from datetime import datetime, timezone
 from botocore.exceptions import ClientError
 from scripts.db.database_factory import DatabaseInterface
-from scripts.db.config import AWS_REGION, USERS_TABLE, COMPANIES_TABLE, SPOCS_TABLE, INVOICES_TABLE
+from scripts.db.config import AWS_REGION, USERS_TABLE, COMPANIES_TABLE, SPOCS_TABLE, INVOICES_TABLE, REQUIREMENTS_TABLE
 
 class DynamoDBAdapter(DatabaseInterface):
     def __init__(self):
@@ -12,6 +12,7 @@ class DynamoDBAdapter(DatabaseInterface):
         self.companies_table = self.dynamodb.Table(COMPANIES_TABLE)
         self.spocs_table = self.dynamodb.Table(SPOCS_TABLE)
         self.invoices_table = self.dynamodb.Table(INVOICES_TABLE)
+        self.requirements_table = self.dynamodb.Table(REQUIREMENTS_TABLE)
     
     def create_user(self, username: str, hashed_password: str) -> Dict[str, Any]:
         user_data = {
@@ -160,6 +161,39 @@ class DynamoDBAdapter(DatabaseInterface):
             
             self.invoices_table.update_item(
                 Key={'id': invoice_id},
+                UpdateExpression=update_expression,
+                ExpressionAttributeValues=expression_values
+            )
+            return True
+        except ClientError:
+            return False
+    
+    def create_requirement(self, requirement_data: Dict[str, Any]) -> Dict[str, Any]:
+        requirement_id = self._get_next_id('requirements')
+        requirement_data['requirement_id'] = requirement_id
+        self.requirements_table.put_item(Item=requirement_data)
+        return requirement_data
+    
+    def list_requirements(self) -> List[Dict[str, Any]]:
+        try:
+            response = self.requirements_table.scan()
+            return response.get('Items', [])
+        except ClientError:
+            return []
+    
+    def update_requirement(self, requirement_id: int, update_data: Dict[str, Any]) -> bool:
+        try:
+            update_expression = "SET "
+            expression_values = {}
+            
+            for key, value in update_data.items():
+                update_expression += f"{key} = :{key}, "
+                expression_values[f":{key}"] = value
+            
+            update_expression = update_expression.rstrip(', ')
+            
+            self.requirements_table.update_item(
+                Key={'requirement_id': requirement_id},
                 UpdateExpression=update_expression,
                 ExpressionAttributeValues=expression_values
             )

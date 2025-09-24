@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from contextlib import contextmanager
 from scripts.db.database import get_db
-from scripts.db.models import User, Company, Invoice, SPOC
+from scripts.db.models import User, Company, Invoice, SPOC, Requirement
 from scripts.db.database_factory import DatabaseInterface
 
 class SQLiteAdapter(DatabaseInterface):
@@ -15,12 +15,16 @@ class SQLiteAdapter(DatabaseInterface):
         finally:
             db.close()
     
-    def _to_dict(self, obj, date_fields: Optional[List[str]] = None) -> Dict[str, Any]:
+    def _to_dict(self, obj, date_fields: Optional[List[str]] = None, datetime_fields: Optional[List[str]] = None) -> Dict[str, Any]:
         result = {c.name: getattr(obj, c.name) for c in obj.__table__.columns}
         if date_fields:
             for field in date_fields:
                 if result.get(field):
                     result[field] = result[field].strftime('%Y-%m-%d')
+        if datetime_fields:
+            for field in datetime_fields:
+                if result.get(field):
+                    result[field] = result[field].isoformat()
         return result
     
     def _create_record(self, model_class: Type, **kwargs) -> Dict[str, Any]:
@@ -88,3 +92,33 @@ class SQLiteAdapter(DatabaseInterface):
     
     def update_invoice(self, invoice_id: int, update_data: Dict[str, Any]) -> bool:
         return self._update_record(Invoice, invoice_id, update_data)
+    
+    def create_requirement(self, requirement_data: Dict[str, Any]) -> Dict[str, Any]:
+        # Filter None values and create record
+        return self._create_record(Requirement, **{k: v for k, v in requirement_data.items() if v is not None})
+    
+    def list_requirements(self) -> List[Dict[str, Any]]:
+        with self._db_session() as db:
+            requirements = db.query(Requirement).all()
+            return [self._to_dict(req, ['expected_billing_date'], ['created_date', 'closed_date', 'updated_date']) for req in requirements]
+    
+    def update_requirement(self, requirement_id: int, update_data: Dict[str, Any]) -> bool:
+        # Map API fields to database columns
+        field_mapping = {
+            'company_id': 'company_id',
+            'skills_required': 'key_skill',
+            'description': 'jd',
+            'expected_billing_date': 'expected_billing_date',
+            'created_date': 'created_date'
+        }
+        
+        mapped_data = {}
+        for api_field, value in update_data.items():
+            db_field = field_mapping.get(api_field, api_field)
+            mapped_data[db_field] = value
+        
+        with self._db_session() as db:
+            column_updates = {getattr(Requirement, key): value for key, value in mapped_data.items()}
+            result = db.query(Requirement).filter(Requirement.requirement_id == requirement_id).update(column_updates)
+            db.commit()
+            return result > 0
