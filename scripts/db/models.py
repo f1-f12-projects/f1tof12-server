@@ -2,6 +2,7 @@ from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Date, Floa
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
 Base = declarative_base()
 
@@ -18,8 +19,8 @@ class Company(Base):
     spoc = Column(String)
     email_id = Column(String)
     status = Column(String, default="active")
-    created_date = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-    updated_date = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    created_date = Column(DateTime, default=lambda: datetime.now(ZoneInfo('Asia/Kolkata')))
+    updated_date = Column(DateTime, default=lambda: datetime.now(ZoneInfo('Asia/Kolkata')), onupdate=lambda: datetime.now(ZoneInfo('Asia/Kolkata')))
 
 class SPOC(Base):
     __tablename__ = "spocs"
@@ -30,8 +31,8 @@ class SPOC(Base):
     email_id = Column(String)
     location = Column(String)
     status = Column(String, default="active")
-    created_date = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-    updated_date = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    created_date = Column(DateTime, default=lambda: datetime.now(ZoneInfo('Asia/Kolkata')))
+    updated_date = Column(DateTime, default=lambda: datetime.now(ZoneInfo('Asia/Kolkata')), onupdate=lambda: datetime.now(ZoneInfo('Asia/Kolkata')))
     
     company = relationship("Company")
 
@@ -48,8 +49,9 @@ class CandidateStatus(Base):
 class Requirement(Base):
     __tablename__ = "requirements"
     requirement_id = Column(Integer, primary_key=True, index=True)
-    created_date = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_date = Column(DateTime, default=lambda: datetime.now(ZoneInfo('Asia/Kolkata')))
     company_id = Column(Integer, ForeignKey("companies.id"))
+    spoc_id = Column(Integer, ForeignKey("spocs.id"))
     key_skill = Column(String)
     jd = Column(String)
     status_id = Column(Integer, ForeignKey("requirement_status.id"))
@@ -60,9 +62,10 @@ class Requirement(Base):
     location = Column(String)
     remarks = Column(String)
     req_cust_ref_id = Column(String)
-    updated_date = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    updated_date = Column(DateTime, default=lambda: datetime.now(ZoneInfo('Asia/Kolkata')), onupdate=lambda: datetime.now(ZoneInfo('Asia/Kolkata')))
     
     company = relationship("Company")
+    spoc = relationship("SPOC")
     status = relationship("RequirementStatus")
 
 class Invoice(Base):

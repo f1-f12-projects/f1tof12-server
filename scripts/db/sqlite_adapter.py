@@ -102,6 +102,11 @@ class SQLiteAdapter(DatabaseInterface):
             requirements = db.query(Requirement).all()
             return [self._to_dict(req, ['expected_billing_date'], ['created_date', 'closed_date', 'updated_date']) for req in requirements]
     
+    def get_requirement(self, requirement_id: int) -> Optional[Dict[str, Any]]:
+        with self._db_session() as db:
+            requirement = db.query(Requirement).filter(Requirement.requirement_id == requirement_id).first()
+            return self._to_dict(requirement, ['expected_billing_date'], ['created_date', 'closed_date', 'updated_date']) if requirement else None
+    
     def update_requirement(self, requirement_id: int, update_data: Dict[str, Any]) -> bool:
         # Map API fields to database columns
         field_mapping = {

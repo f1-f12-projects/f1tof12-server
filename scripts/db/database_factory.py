@@ -64,6 +64,10 @@ class DatabaseInterface(ABC):
         pass
     
     @abstractmethod
+    def get_requirement(self, requirement_id: int) -> Optional[Dict[str, Any]]:
+        pass
+    
+    @abstractmethod
     def update_requirement(self, requirement_id: int, update_data: Dict[str, Any]) -> bool:
         pass
 

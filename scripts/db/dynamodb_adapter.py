@@ -181,6 +181,13 @@ class DynamoDBAdapter(DatabaseInterface):
         except ClientError:
             return []
     
+    def get_requirement(self, requirement_id: int) -> Optional[Dict[str, Any]]:
+        try:
+            response = self.requirements_table.get_item(Key={'requirement_id': requirement_id})
+            return response.get('Item')
+        except ClientError:
+            return None
+    
     def update_requirement(self, requirement_id: int, update_data: Dict[str, Any]) -> bool:
         try:
             update_expression = "SET "
