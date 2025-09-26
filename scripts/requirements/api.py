@@ -78,7 +78,7 @@ def add_requirement(requirement: RequirementCreate, user_info: dict = Depends(re
             requirement_dict['created_date'] = datetime.now(ZoneInfo('Asia/Kolkata'))
         
         # Map experience_level to remarks for database
-        requirement_dict['remarks'] = requirement_dict.pop('experience_level')
+        requirement_dict['remarks'] = append_remark ("", requirement_dict.pop('experience_level'), user_info.get('username', 'unknown'))
         
         # Map status to status_id for database
         if 'status' in requirement_dict:
