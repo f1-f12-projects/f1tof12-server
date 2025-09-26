@@ -3,7 +3,7 @@ from typing import Optional, List, Dict, Any
 from datetime import datetime, timezone
 from botocore.exceptions import ClientError
 from scripts.db.database_factory import DatabaseInterface
-from scripts.db.config import AWS_REGION, USERS_TABLE, COMPANIES_TABLE, SPOCS_TABLE, INVOICES_TABLE, REQUIREMENTS_TABLE, REQUIREMENT_STATUSES_TABLE
+from scripts.db.config import AWS_REGION, USERS_TABLE, COMPANIES_TABLE, SPOCS_TABLE, INVOICES_TABLE, REQUIREMENTS_TABLE, REQUIREMENT_STATUSES_TABLE, CANDIDATES_TABLE, CANDIDATE_STATUSES_TABLE
 
 class DynamoDBAdapter(DatabaseInterface):
     def __init__(self):
@@ -14,6 +14,8 @@ class DynamoDBAdapter(DatabaseInterface):
         self.invoices_table = self.dynamodb.Table(INVOICES_TABLE)
         self.requirements_table = self.dynamodb.Table(REQUIREMENTS_TABLE)
         self.requirement_statuses_table = self.dynamodb.Table(REQUIREMENT_STATUSES_TABLE)
+        self.candidates_table = self.dynamodb.Table(CANDIDATES_TABLE)
+        self.candidate_statuses_table = self.dynamodb.Table(CANDIDATE_STATUSES_TABLE)
     
     def create_user(self, username: str, hashed_password: str) -> Dict[str, Any]:
         user_data = {
@@ -212,6 +214,46 @@ class DynamoDBAdapter(DatabaseInterface):
     def list_requirement_statuses(self) -> List[Dict[str, Any]]:
         try:
             response = self.requirement_statuses_table.scan()
+            return response.get('Items', [])
+        except ClientError:
+            return []
+    
+    def create_candidate(self, candidate_data: Dict[str, Any]) -> Dict[str, Any]:
+        candidate_id = self._get_next_id('candidates')
+        candidate_data['candidate_id'] = candidate_id
+        self.candidates_table.put_item(Item=candidate_data)
+        return candidate_data
+    
+    def list_candidates(self) -> List[Dict[str, Any]]:
+        try:
+            response = self.candidates_table.scan()
+            return response.get('Items', [])
+        except ClientError:
+            return []
+    
+    def update_candidate(self, candidate_id: int, update_data: Dict[str, Any]) -> bool:
+        try:
+            update_expression = "SET "
+            expression_values = {}
+            
+            for key, value in update_data.items():
+                update_expression += f"{key} = :{key}, "
+                expression_values[f":{key}"] = value
+            
+            update_expression = update_expression.rstrip(', ')
+            
+            self.candidates_table.update_item(
+                Key={'candidate_id': candidate_id},
+                UpdateExpression=update_expression,
+                ExpressionAttributeValues=expression_values
+            )
+            return True
+        except ClientError:
+            return False
+    
+    def list_candidate_statuses(self) -> List[Dict[str, Any]]:
+        try:
+            response = self.candidate_statuses_table.scan()
             return response.get('Items', [])
         except ClientError:
             return []

@@ -39,7 +39,15 @@ def require_roles(allowed_roles: List[str]):
         user_role = user_info['role']
         
         # Manager role has access to all other roles
-        if user_role == ROLES[MANAGER_ROLE] or user_role in allowed_roles:
+        if user_role == ROLES[MANAGER_ROLE]:
+            return user_info
+            
+        # Lead role has recruiter permissions
+        if user_role == ROLES[LEAD_ROLE] and ROLES[RECRUITER_ROLE] in allowed_roles:
+            return user_info
+            
+        # Check if user role is in allowed roles
+        if user_role in allowed_roles:
             return user_info
 
         raise HTTPException(

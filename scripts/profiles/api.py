@@ -5,6 +5,9 @@ from auth import require_recruiter, require_lead_or_recruiter
 from scripts.utils.response import success_response, handle_error
 from typing import Optional
 
+class StatusUpdate(BaseModel):
+    status: int
+
 router = APIRouter(prefix="/profiles", tags=["profiles"])
 
 class ProfileCreate(BaseModel):
@@ -18,7 +21,7 @@ class ProfileCreate(BaseModel):
     current_ctc: Optional[float] = None
     expected_ctc: Optional[float] = None
     notice_period: Optional[str] = None
-    status: str = "active"
+    status: str = "New"
 
 class ProfileUpdate(BaseModel):
     name: Optional[str] = None
@@ -36,9 +39,8 @@ class ProfileUpdate(BaseModel):
 @router.post("/add")
 def add_profile(profile: ProfileCreate, user_info: dict = Depends(require_recruiter)):
     try:
-        # db = get_database()
-        # profile_data = db.create_profile(profile.dict())
-        profile_data = profile.dict()  # Placeholder for actual DB operation
+        db = get_database()
+        profile_data = db.create_candidate(profile.dict())
         return success_response(profile_data, "Profile added successfully")
     except Exception as e:
         handle_error(e, "add profile")
@@ -46,9 +48,8 @@ def add_profile(profile: ProfileCreate, user_info: dict = Depends(require_recrui
 @router.get("/list")
 def list_profiles(user_info: dict = Depends(require_recruiter)):
     try:
-        # db = get_database()
-        # profiles_data = db.list_profiles()
-        profiles_data = []  # Placeholder for actual DB operation
+        db = get_database()
+        profiles_data = db.list_candidates()
         return success_response(profiles_data, "Profiles retrieved successfully")
     except Exception as e:
         handle_error(e, "list profiles")
@@ -62,7 +63,7 @@ def update_profile(profile_id: int, profile_update: ProfileUpdate, user_info: di
             raise HTTPException(status_code=400, detail="No valid fields to update")
         
         db = get_database()
-        success = db.update_profile(profile_id, update_data)
+        success = db.update_candidate(profile_id, update_data)
         if not success:
             raise HTTPException(status_code=404, detail="Profile not found")
         
@@ -71,6 +72,26 @@ def update_profile(profile_id: int, profile_update: ProfileUpdate, user_info: di
         raise
     except Exception as e:
         handle_error(e, "update profile")
+
+@router.put("/{profile_id}/status")
+def update_status(profile_id: int, status_update: StatusUpdate, user_info: dict = Depends(require_recruiter)):
+    try:
+        # Validate status value
+        db = get_database()
+        candidate_statuses = db.list_candidate_statuses()
+        valid_statuses = [status['id'] for status in candidate_statuses]
+        if status_update.status not in valid_statuses:
+            raise HTTPException(status_code=400, detail=f"Invalid status passed.")
+        
+        success = db.update_candidate(profile_id, {"status": status_update.status})
+        if not success:
+            raise HTTPException(status_code=404, detail="Profile not found")
+        
+        return success_response(message="Status updated successfully")
+    except HTTPException:
+        raise
+    except Exception as e:
+        handle_error(e, "update status")
 
 @router.get("/view-requirements")
 def view_requirements(user_info: dict = Depends(require_recruiter)):

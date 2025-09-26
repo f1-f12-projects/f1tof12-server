@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from contextlib import contextmanager
 from scripts.db.database import get_db
-from scripts.db.models import User, Company, Invoice, SPOC, Requirement, RequirementStatus
+from scripts.db.models import User, Company, Invoice, SPOC, Requirement, RequirementStatus, Candidate, CandidateStatus
 from scripts.db.database_factory import DatabaseInterface
 
 class SQLiteAdapter(DatabaseInterface):
@@ -131,4 +131,20 @@ class SQLiteAdapter(DatabaseInterface):
     def list_requirement_statuses(self) -> List[Dict[str, Any]]:
         with self._db_session() as db:
             statuses = db.query(RequirementStatus).all()
+            return [self._to_dict(status) for status in statuses]
+    
+    def create_candidate(self, candidate_data: Dict[str, Any]) -> Dict[str, Any]:
+        return self._create_record(Candidate, **candidate_data)
+    
+    def list_candidates(self) -> List[Dict[str, Any]]:
+        with self._db_session() as db:
+            candidates = db.query(Candidate).all()
+            return [self._to_dict(candidate, datetime_fields=['created_date', 'updated_date']) for candidate in candidates]
+    
+    def update_candidate(self, candidate_id: int, update_data: Dict[str, Any]) -> bool:
+        return self._update_record(Candidate, candidate_id, update_data)
+    
+    def list_candidate_statuses(self) -> List[Dict[str, Any]]:
+        with self._db_session() as db:
+            statuses = db.query(CandidateStatus).all()
             return [self._to_dict(status) for status in statuses]

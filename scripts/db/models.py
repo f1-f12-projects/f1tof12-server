@@ -45,6 +45,7 @@ class CandidateStatus(Base):
     __tablename__ = "candidate_status"
     id = Column(Integer, primary_key=True, index=True)
     status = Column(String, unique=True, index=True)
+    stage = Column(String)
 
 class Requirement(Base):
     __tablename__ = "requirements"
@@ -67,6 +68,23 @@ class Requirement(Base):
     company = relationship("Company")
     spoc = relationship("SPOC")
     status = relationship("RequirementStatus")
+
+class Candidate(Base):
+    __tablename__ = "candidates"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String)
+    email = Column(String)
+    phone = Column(String)
+    skills = Column(String)
+    experience_years = Column(Integer)
+    current_location = Column(String)
+    preferred_location = Column(String)
+    current_ctc = Column(Float)
+    expected_ctc = Column(Float)
+    notice_period = Column(String)
+    status = Column(Integer, default=1)
+    created_date = Column(DateTime, default=lambda: datetime.now(ZoneInfo('Asia/Kolkata')))
+    updated_date = Column(DateTime, default=lambda: datetime.now(ZoneInfo('Asia/Kolkata')), onupdate=lambda: datetime.now(ZoneInfo('Asia/Kolkata')))
 
 class Invoice(Base):
     __tablename__ = "invoices"

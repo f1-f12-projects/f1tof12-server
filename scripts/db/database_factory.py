@@ -74,6 +74,22 @@ class DatabaseInterface(ABC):
     @abstractmethod
     def list_requirement_statuses(self) -> List[Dict[str, Any]]:
         pass
+    
+    @abstractmethod
+    def create_candidate(self, candidate_data: Dict[str, Any]) -> Dict[str, Any]:
+        pass
+    
+    @abstractmethod
+    def list_candidates(self) -> List[Dict[str, Any]]:
+        pass
+    
+    @abstractmethod
+    def update_candidate(self, candidate_id: int, update_data: Dict[str, Any]) -> bool:
+        pass
+    
+    @abstractmethod
+    def list_candidate_statuses(self) -> List[Dict[str, Any]]:
+        pass
 
 def get_database() -> DatabaseInterface:
     """Factory function to return appropriate database implementation"""
