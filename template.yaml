@@ -1,42 +1,182 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 
+# CloudFront secret fetched at runtime from SSM
+
 Globals:
   Function:
     Timeout: 30
-    Runtime: python3.9
+    Runtime: python3.12
+  HttpApi:
+    CorsConfiguration:
+      AllowOrigins:
+        - "http://localhost:3000"
+        - "https://f1tof12.com"
+        - "https://sz8wal44w0.execute-api.ap-south-1.amazonaws.com"
+      AllowHeaders:
+        - "Content-Type"
+        - "Authorization"
+        - "x-origin"
+        - "x-cloudfront-secret"
+      AllowMethods:
+        - "GET"
+        - "POST"
+        - "PUT"
+        - "DELETE"
 
 Resources:
+  F1toF12LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /aws/lambda/f1tof12-api-logs
+      RetentionInDays: 14
+
   F1toF12API:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: .
       Handler: lambda_handler.handler
+      LoggingConfig:
+        LogGroup: !Ref F1toF12LogGroup
       Environment:
         Variables:
-          S3_BUCKET: f1tof12-db-backup
-          JWT_SECRET_KEY: "your-generated-secure-key-here"
+          ENVIRONMENT: prod
+          CUSTOMER: vst
+          # Cognito config fetched at runtime from us-east-1
+          # CloudFront secret fetched at runtime from SSM
+          USE_DYNAMODB: true
+          USERS_TABLE: !Ref UsersTable
+          COMPANIES_TABLE: !Ref CompaniesTable
+          SPOCS_TABLE: !Ref SPOCsTable
+          INVOICES_TABLE: !Ref InvoicesTable
       Policies:
         - Version: "2012-10-17"
           Statement:
+
             - Effect: Allow
               Action:
-                - s3:GetObject
-                - s3:PutObject
-                - s3:DeleteObject
-              Resource: "arn:aws:s3:::f1tof12-db-backup/*"
+                - cognito-idp:GetUser
+                - cognito-idp:ListUsers
+                - cognito-idp:InitiateAuth
+                - cognito-idp:RespondToAuthChallenge
+                - cognito-idp:GlobalSignOut
+                - cognito-idp:AdminUpdateUserAttributes
+                - cognito-idp:AdminResetUserPassword
+                - cognito-idp:AdminConfirmSignUp
+                - cognito-idp:AdminEnableUser
+                - cognito-idp:AdminDisableUser
+                - cognito-idp:AdminCreateUser
+                - cognito-idp:AdminSetUserPassword
+              Resource: "*"
             - Effect: Allow
               Action:
-                - s3:ListBucket
-              Resource: "arn:aws:s3:::f1tof12-db-backup"
+                - ssm:GetParameter
+                - ssm:GetParameters
+              Resource: 
+                - "arn:aws:ssm:us-east-1:*:parameter/f1tof12/*"
+                - "arn:aws:ssm:ap-south-1:*:parameter/f1tof12/*"
+            - Effect: Allow
+              Action:
+                - dynamodb:GetItem
+                - dynamodb:PutItem
+                - dynamodb:UpdateItem
+                - dynamodb:DeleteItem
+                - dynamodb:Scan
+                - dynamodb:Query
+              Resource:
+                - !GetAtt UsersTable.Arn
+                - !GetAtt CompaniesTable.Arn
+                - !GetAtt SPOCsTable.Arn
+                - !GetAtt InvoicesTable.Arn
+                - !GetAtt CountersTable.Arn
       Events:
         ApiEvent:
           Type: HttpApi
           Properties:
             Path: /{proxy+}
             Method: ANY
+        RootEvent:
+          Type: HttpApi
+          Properties:
+            Path: /
+            Method: ANY
+
+  UsersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: f1tof12-users
+      AttributeDefinitions:
+        - AttributeName: username
+          AttributeType: S
+      KeySchema:
+        - AttributeName: username
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+
+  CompaniesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: f1tof12-companies
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: N
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+
+  SPOCsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: f1tof12-spocs
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: N
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+
+  InvoicesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: f1tof12-invoices
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: N
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+
+  CountersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: f1tof12-counters
+      AttributeDefinitions:
+        - AttributeName: table_name
+          AttributeType: S
+      KeySchema:
+        - AttributeName: table_name
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
 
 Outputs:
   ApiUrl:
     Description: "API Gateway endpoint URL"
     Value: !Sub "https://${ServerlessHttpApi}.execute-api.${AWS::Region}.amazonaws.com/"
+  UsersTableName:
+    Description: "DynamoDB Users Table Name"
+    Value: !Ref UsersTable
+  CompaniesTableName:
+    Description: "DynamoDB Companies Table Name"
+    Value: !Ref CompaniesTable
+  SPOCsTableName:
+    Description: "DynamoDB SPOCs Table Name"
+    Value: !Ref SPOCsTable
+  InvoicesTableName:
+    Description: "DynamoDB Invoices Table Name"
+    Value: !Ref InvoicesTable
+  CountersTableName:
+    Description: "DynamoDB Counters Table Name"
+    Value: !Ref CountersTable

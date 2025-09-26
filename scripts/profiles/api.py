@@ -1,0 +1,82 @@
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
+from scripts.db.database_factory import get_database
+from auth import require_recruiter, require_lead_or_recruiter
+from scripts.utils.response import success_response, handle_error
+from typing import Optional
+
+router = APIRouter(prefix="/profiles", tags=["profiles"])
+
+class ProfileCreate(BaseModel):
+    name: str
+    email: str
+    phone: str
+    skills: str
+    experience_years: int
+    current_location: str
+    preferred_location: str
+    current_ctc: Optional[float] = None
+    expected_ctc: Optional[float] = None
+    notice_period: Optional[str] = None
+    status: str = "active"
+
+class ProfileUpdate(BaseModel):
+    name: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    skills: Optional[str] = None
+    experience_years: Optional[int] = None
+    current_location: Optional[str] = None
+    preferred_location: Optional[str] = None
+    current_ctc: Optional[float] = None
+    expected_ctc: Optional[float] = None
+    notice_period: Optional[str] = None
+    status: Optional[str] = None
+
+@router.post("/add")
+def add_profile(profile: ProfileCreate, user_info: dict = Depends(require_recruiter)):
+    try:
+        # db = get_database()
+        # profile_data = db.create_profile(profile.dict())
+        profile_data = profile.dict()  # Placeholder for actual DB operation
+        return success_response(profile_data, "Profile added successfully")
+    except Exception as e:
+        handle_error(e, "add profile")
+
+@router.get("/list")
+def list_profiles(user_info: dict = Depends(require_recruiter)):
+    try:
+        # db = get_database()
+        # profiles_data = db.list_profiles()
+        profiles_data = []  # Placeholder for actual DB operation
+        return success_response(profiles_data, "Profiles retrieved successfully")
+    except Exception as e:
+        handle_error(e, "list profiles")
+
+@router.put("/{profile_id}/update")
+def update_profile(profile_id: int, profile_update: ProfileUpdate, user_info: dict = Depends(require_recruiter)):
+    try:
+        update_data = {k: v for k, v in profile_update.dict().items() if v is not None}
+        
+        if not update_data:
+            raise HTTPException(status_code=400, detail="No valid fields to update")
+        
+        db = get_database()
+        success = db.update_profile(profile_id, update_data)
+        if not success:
+            raise HTTPException(status_code=404, detail="Profile not found")
+        
+        return success_response(message="Profile updated successfully")
+    except HTTPException:
+        raise
+    except Exception as e:
+        handle_error(e, "update profile")
+
+@router.get("/view-requirements")
+def view_requirements(user_info: dict = Depends(require_recruiter)):
+    try:
+        db = get_database()
+        requirements_data = db.list_requirements()
+        return success_response(requirements_data, "Requirements retrieved successfully")
+    except Exception as e:
+        handle_error(e, "view requirements")

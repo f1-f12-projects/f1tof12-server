@@ -1,6 +1,0 @@
-{
-  "dependencies": {
-    "serverless": "^4.17.2",
-    "serverless-python-requirements": "^6.1.2"
-  }
-}

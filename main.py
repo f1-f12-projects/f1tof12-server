@@ -1,86 +1,97 @@
-from fastapi import FastAPI, Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy.orm import Session
-from pydantic import BaseModel
-from database import get_db, User, restore_from_s3, backup_to_s3
-from auth import verify_password, get_password_hash, create_access_token, verify_token
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+from scripts.customer.api import router as customer_router
+from scripts.users.api import router as users_router
+from scripts.spoc.api import router as spoc_router
+from scripts.invoices.api import router as invoice_router
+from scripts.requirements.api import router as requirements_router
+from scripts.profiles.api import router as profiles_router
+from scripts.utils.cloudfront_middleware import CloudFrontMiddleware
+from version import __version__, __changelog__
+from load_env import load_environment
+from scripts.utils import logging_config  # Import logging configuration
+import logging
+import os
 
-app = FastAPI(title="F1toF12 API")
-security = HTTPBearer()
+# Load environment configuration
+load_environment()
+
+logging.getLogger().setLevel(logging.INFO)
+logger = logging.getLogger(__name__)
+
+app = FastAPI(title="F1toF12 API", debug=True)
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    errors = [
+        f"{error['loc'][-1] if error['loc'] else 'field'} is required" if error['type'] == 'missing' else error['msg']
+        for error in exc.errors()
+    ]
+    return JSONResponse(
+        status_code=400,
+        content={"detail": errors[0] if len(errors) == 1 else errors}
+    )
+
+# Include routers with customer prefix
+customer_prefix = f"/{os.getenv('CUSTOMER', 'f1tof12')}"
+routers = [customer_router, users_router, spoc_router, invoice_router, requirements_router, profiles_router]
+for router in routers:
+    app.include_router(router, prefix=customer_prefix)
+
+# Add CloudFront restriction middleware (only in production)
+if os.getenv('ENVIRONMENT') == 'prod':
+    app.add_middleware(CloudFrontMiddleware)
 
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["https://f1tof12.com", "https://www.f1tof12.com"] if os.getenv('ENVIRONMENT') == 'prod' else ["*"],
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["*"],
+    allow_headers=["*", "x-origin", "x-cloudfront-secret"],
+    expose_headers=["X-CloudFront-Secret"],
 )
 
 @app.on_event("startup")
 async def startup_event():
-    try:
-        restore_from_s3()  # Load database from S3 on startup
-    except Exception as e:
-        print(f"S3 restore failed on startup: {e}")
+    logger.info("F1toF12 API starting up")
 
-class UserCreate(BaseModel):
-    username: str
-    password: str
+@app.get(f"/{os.getenv('CUSTOMER', 'f1tof12')}/")
+def root():
+    return {"message": "F1toF12 API", "version": __version__, "endpoints": ["/vst/login", "/vst/health"]}
 
-class UserLogin(BaseModel):
-    username: str
-    password: str
-
-class Token(BaseModel):
-    access_token: str
-    token_type: str
-
-def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
-    username = verify_token(credentials.credentials)
-    user = db.query(User).filter(User.username == username).first()
-    if user is None:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
-    return user
-
-@app.post("/register", response_model=dict)
-def register(user: UserCreate, db: Session = Depends(get_db)):
-    print ("Registering user")
-    db_user = db.query(User).filter(User.username == user.username).first()
-    if db_user:
-        raise HTTPException(status_code=400, detail="Username already registered")
+@app.get(f"/{os.getenv('CUSTOMER', 'f1tof12')}/version")
+def get_version():
+    # Get version history to determine type
+    versions = list(__changelog__.keys())
+    current_version = __version__
     
-    hashed_password = get_password_hash(user.password)
-    db_user = User(username=user.username, hashed_password=hashed_password)
-    db.add(db_user)
-    db.commit()
-    try:
-        backup_to_s3()  # Backup after new user
-    except Exception as e:
-        print(f"S3 backup failed: {e}")
-    return {"message": "User registered successfully"}
-
-@app.post("/login", response_model=Token)
-def login(user: UserLogin, db: Session = Depends(get_db)):
-    print ("Logging in user")
-    db_user = db.query(User).filter(User.username == user.username).first()
-    if not db_user or not verify_password(user.password, db_user.hashed_password):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+    # Find previous version
+    current_idx = versions.index(current_version) if current_version in versions else 0
     
-    access_token = create_access_token(data={"sub": user.username})
-    return {"access_token": access_token, "token_type": "bearer"}
+    if current_idx > 0:
+        prev_version = versions[current_idx + 1]  # Next in list (older version)
+        curr_parts = [int(x) for x in current_version.split('.')]
+        prev_parts = [int(x) for x in prev_version.split('.')]
+        
+        if curr_parts[0] > prev_parts[0]:
+            version_type = "Major"
+        elif curr_parts[1] > prev_parts[1]:
+            version_type = "Minor"
+        else:
+            version_type = "Patch"
+    else:
+        version_type = "Initial"
+    
+    return {
+        "version": __version__,
+        "type": version_type,
+        "changelog": __changelog__[__version__]
+    }
 
-@app.get("/protected")
-def protected_route(current_user: User = Depends(get_current_user)):
-    return {"message": f"Hello {current_user.username}, this is a protected route"}
-
-@app.get("/health")
+@app.get(f"/{os.getenv('CUSTOMER', 'f1tof12')}/health")
 def health_check():
     return {"status": "ok", "message": "F1toF12 API is running"}
 
-@app.get("/users")
-def get_users(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    print ("Fetching all users")
-    users = db.query(User).all()
-    return [{"id": user.id, "username": user.username} for user in users]
