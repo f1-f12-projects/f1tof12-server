@@ -11,6 +11,7 @@ from scripts.profiles.api import router as profiles_router
 from scripts.utils.cloudfront_middleware import CloudFrontMiddleware
 from version import __version__, __changelog__
 from load_env import load_environment
+from scripts.utils import logging_config  # Import logging configuration
 import logging
 import os
 

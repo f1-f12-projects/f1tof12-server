@@ -6,7 +6,7 @@ from hmac import new as hmac_new
 from hashlib import sha256
 from base64 import b64encode
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from auth import verify_cognito_token, require_admin, require_manager
+from auth import verify_cognito_token, require_admin, require_manager, require_lead
 from typing import Optional
 from scripts.utils.response import success_response, handle_error
 from scripts.constants import AWS_REGION, ALLOWED_ROLES, DEFAULT_ROLE
@@ -270,7 +270,7 @@ def logout(credentials: HTTPAuthorizationCredentials = Depends(security)):
     return success_response(message="Logged out successfully")
 
 @router.get("/users")
-def get_cognito_users(user_info: dict = Depends(require_manager)):
+def get_cognito_users(user_info: dict = Depends(require_lead)):
     logger.info("[ENTRY] Get users API called")
     USER_POOL_ID, _, _ = get_cognito_config()
     client = boto3_client('cognito-idp', region_name=AWS_REGION)

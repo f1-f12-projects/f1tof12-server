@@ -1,10 +1,14 @@
-__version__ = "2.2.0"
+__version__ = "2.3.0"
 __major_version__ = 2
-__minor_version__ = 2
+__minor_version__ = 3
 __patch_version__ = 0
 
 # Latest version should be on top
 __changelog__ = {
+    "2.3.0": [
+        "Added requirement statuses from database",
+        "Implemented requirement status update API with remarks appending",
+    ],
     "2.2.0": [
         "Added requirement status update API with remarks appending",
         "Implemented automatic closed_date setting for terminal statuses (9, 10)",

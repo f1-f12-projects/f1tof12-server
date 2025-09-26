@@ -47,6 +47,27 @@ class RequirementStatusUpdate(BaseModel):
     status_id: int
     remarks: Optional[str] = None
 
+class RequirementRemarksUpdate(BaseModel):
+    remarks: str
+
+def get_requirement_or_404(requirement_id: int):
+    db = get_database()
+    current_req = db.get_requirement(requirement_id)
+    if not current_req:
+        raise HTTPException(status_code=404, detail={"error": "REQUIREMENT_NOT_FOUND", "message": "Requirement not found", "code": "REQ_404"})
+    return current_req
+
+def append_remark(old_remarks: str, new_remark: str, username: str) -> str:
+    current_date = datetime.now(ZoneInfo('Asia/Kolkata')).strftime('%d-%b-%y')
+    formatted_remark = f"{current_date} [{username}]: {new_remark}"
+    return f"{old_remarks}\n{formatted_remark}" if old_remarks else formatted_remark
+
+def update_requirement_or_404(requirement_id: int, update_data: dict) -> None:
+    db = get_database()
+    success = db.update_requirement(requirement_id, update_data)
+    if not success:
+        raise HTTPException(status_code=404, detail={"error": "REQUIREMENT_NOT_FOUND", "message": "Requirement not found", "code": "REQ_404"})
+
 @router.post("/add")
 def add_requirement(requirement: RequirementCreate, user_info: dict = Depends(require_lead)):
     try:
@@ -80,6 +101,25 @@ def list_requirements(user_info: dict = Depends(require_lead_or_recruiter)):
     except Exception as e:
         handle_error(e, "list requirements")
 
+@router.get("/statuses")
+def get_requirement_statuses(user_info: dict = Depends(require_lead_or_recruiter)):
+    try:
+        db = get_database()
+        statuses = db.list_requirement_statuses()
+        return success_response(statuses, "Requirement statuses retrieved successfully")
+    except Exception as e:
+        handle_error(e, "get requirement statuses")
+
+@router.get("/{requirement_id}")
+def get_requirement(requirement_id: int, user_info: dict = Depends(require_lead_or_recruiter)):
+    try:
+        requirement = get_requirement_or_404(requirement_id)
+        return success_response(requirement, "Requirement retrieved successfully")
+    except HTTPException:
+        raise
+    except Exception as e:
+        handle_error(e, "get requirement")
+
 @router.put("/{requirement_id}/update")
 def update_requirement(requirement_id: int, requirement_update: RequirementUpdate, user_info: dict = Depends(require_lead)):
     try:
@@ -88,11 +128,7 @@ def update_requirement(requirement_id: int, requirement_update: RequirementUpdat
         if not update_data:
             raise HTTPException(status_code=400, detail="No valid fields to update")
         
-        db = get_database()
-        success = db.update_requirement(requirement_id, update_data)
-        if not success:
-            raise HTTPException(status_code=404, detail="Requirement not found")
-        
+        update_requirement_or_404(requirement_id, update_data)
         return success_response(message="Requirement updated successfully")
     except HTTPException:
         raise
@@ -102,11 +138,7 @@ def update_requirement(requirement_id: int, requirement_update: RequirementUpdat
 @router.put("/{requirement_id}/spoc")
 def set_requirement_spoc(requirement_id: int, spoc_data: RequirementSPOC, user_info: dict = Depends(require_lead)):
     try:
-        db = get_database()
-        success = db.update_requirement(requirement_id, {"spoc_id": spoc_data.spoc_id})
-        if not success:
-            raise HTTPException(status_code=404, detail="Requirement not found")
-        
+        update_requirement_or_404(requirement_id, {"spoc_id": spoc_data.spoc_id})
         return success_response(message="SPOC assigned to requirement successfully")
     except HTTPException:
         raise
@@ -132,24 +164,33 @@ def assign_recruiter(requirement_id: int, recruiter_data: RequirementRecruiter, 
                 "code": "RCTR_404"
             })
         
-        db = get_database()
-        success = db.update_requirement(requirement_id, {"recruiter_name": recruiter_data.recruiter_name})
-        if not success:
-            raise HTTPException(status_code=404, detail="Requirement not found")
-        
+        update_requirement_or_404(requirement_id, {"recruiter_name": recruiter_data.recruiter_name})
         return success_response(message="Recruiter assigned to requirement successfully")
     except HTTPException:
         raise
     except Exception as e:
         handle_error(e, "assign recruiter")
 
+@router.put("/{requirement_id}/remarks")
+def update_remarks(requirement_id: int, remarks_update: RequirementRemarksUpdate, user_info: dict = Depends(require_lead)):
+    try:
+        current_req = get_requirement_or_404(requirement_id)
+        
+        old_remarks = current_req.get('remarks', '')
+        username = user_info.get('username', 'unknown')
+        new_remarks = append_remark(old_remarks, remarks_update.remarks, username)
+        
+        update_requirement_or_404(requirement_id, {"remarks": new_remarks})
+        return success_response(message="Remarks updated successfully")
+    except HTTPException:
+        raise
+    except Exception as e:
+        handle_error(e, "update remarks")
+
 @router.put("/{requirement_id}/status")
 def update_status_with_remarks(requirement_id: int, status_update: RequirementStatusUpdate, user_info: dict = Depends(require_lead)):
     try:
-        db = get_database()
-        current_req = db.get_requirement(requirement_id)
-        if not current_req:
-            raise HTTPException(status_code=404, detail={"error": "REQUIREMENT_NOT_FOUND", "message": "Requirement not found", "code": "REQ_404"})
+        current_req = get_requirement_or_404(requirement_id)
         
         update_data: Dict[str, Any] = {"status_id": status_update.status_id}
         
@@ -158,16 +199,10 @@ def update_status_with_remarks(requirement_id: int, status_update: RequirementSt
         
         if status_update.remarks:
             old_remarks = current_req.get('remarks', '')
-            current_date = datetime.now(ZoneInfo('Asia/Kolkata')).strftime('%d-%b-%y')
             username = user_info.get('username', 'unknown')
-            formatted_remark = f"{current_date} [{username}]: {status_update.remarks}"
-            new_remarks = f"{old_remarks}\n{formatted_remark}" if old_remarks else formatted_remark
-            update_data["remarks"] = new_remarks
+            update_data["remarks"] = append_remark(old_remarks, status_update.remarks, username)
         
-        success = db.update_requirement(requirement_id, update_data)
-        if not success:
-            raise HTTPException(status_code=404, detail={"error": "REQUIREMENT_NOT_FOUND", "message": "Requirement not found", "code": "REQ_404"})
-        
+        update_requirement_or_404(requirement_id, update_data)
         return success_response(message="Status and remarks updated successfully")
     except HTTPException:
         raise

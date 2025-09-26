@@ -3,7 +3,7 @@ from typing import Optional, List, Dict, Any
 from datetime import datetime, timezone
 from botocore.exceptions import ClientError
 from scripts.db.database_factory import DatabaseInterface
-from scripts.db.config import AWS_REGION, USERS_TABLE, COMPANIES_TABLE, SPOCS_TABLE, INVOICES_TABLE, REQUIREMENTS_TABLE
+from scripts.db.config import AWS_REGION, USERS_TABLE, COMPANIES_TABLE, SPOCS_TABLE, INVOICES_TABLE, REQUIREMENTS_TABLE, REQUIREMENT_STATUSES_TABLE
 
 class DynamoDBAdapter(DatabaseInterface):
     def __init__(self):
@@ -13,6 +13,7 @@ class DynamoDBAdapter(DatabaseInterface):
         self.spocs_table = self.dynamodb.Table(SPOCS_TABLE)
         self.invoices_table = self.dynamodb.Table(INVOICES_TABLE)
         self.requirements_table = self.dynamodb.Table(REQUIREMENTS_TABLE)
+        self.requirement_statuses_table = self.dynamodb.Table(REQUIREMENT_STATUSES_TABLE)
     
     def create_user(self, username: str, hashed_password: str) -> Dict[str, Any]:
         user_data = {
@@ -207,6 +208,13 @@ class DynamoDBAdapter(DatabaseInterface):
             return True
         except ClientError:
             return False
+    
+    def list_requirement_statuses(self) -> List[Dict[str, Any]]:
+        try:
+            response = self.requirement_statuses_table.scan()
+            return response.get('Items', [])
+        except ClientError:
+            return []
     
     def _get_next_id(self, table_type: str) -> int:
         """Get next auto-increment ID for a table type"""

@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from contextlib import contextmanager
 from scripts.db.database import get_db
-from scripts.db.models import User, Company, Invoice, SPOC, Requirement
+from scripts.db.models import User, Company, Invoice, SPOC, Requirement, RequirementStatus
 from scripts.db.database_factory import DatabaseInterface
 
 class SQLiteAdapter(DatabaseInterface):
@@ -127,3 +127,8 @@ class SQLiteAdapter(DatabaseInterface):
             result = db.query(Requirement).filter(Requirement.requirement_id == requirement_id).update(column_updates)
             db.commit()
             return result > 0
+    
+    def list_requirement_statuses(self) -> List[Dict[str, Any]]:
+        with self._db_session() as db:
+            statuses = db.query(RequirementStatus).all()
+            return [self._to_dict(status) for status in statuses]

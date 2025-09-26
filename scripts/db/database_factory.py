@@ -70,6 +70,10 @@ class DatabaseInterface(ABC):
     @abstractmethod
     def update_requirement(self, requirement_id: int, update_data: Dict[str, Any]) -> bool:
         pass
+    
+    @abstractmethod
+    def list_requirement_statuses(self) -> List[Dict[str, Any]]:
+        pass
 
 def get_database() -> DatabaseInterface:
     """Factory function to return appropriate database implementation"""
