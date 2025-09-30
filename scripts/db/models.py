@@ -63,6 +63,7 @@ class Requirement(Base):
     location = Column(String)
     remarks = Column(String)
     req_cust_ref_id = Column(String)
+    role = Column(String)
     updated_date = Column(DateTime, default=lambda: datetime.now(ZoneInfo('Asia/Kolkata')), onupdate=lambda: datetime.now(ZoneInfo('Asia/Kolkata')))
     
     company = relationship("Company")

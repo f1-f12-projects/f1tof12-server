@@ -24,6 +24,7 @@ class RequirementCreate(BaseModel):
     status_id: int = Field(1, alias="status")
     req_cust_ref_id: Optional[str] = Field(None, alias="req_cust_ref_id")
     created_date: Optional[datetime] = Field(None, alias="created_date")
+    role: Optional[str] = Field(None, alias="role")
     
     class Config:
         allow_population_by_field_name = True
@@ -36,6 +37,7 @@ class RequirementUpdate(BaseModel):
     budget: Optional[float] = None
     expected_billing_date: Optional[date] = None
     req_cust_ref_id: Optional[str] = None
+    role: Optional[str] = None
 
 class RequirementSPOC(BaseModel):
     spoc_id: int
