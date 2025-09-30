@@ -16,3 +16,4 @@ REQUIREMENT_STATUSES_TABLE = os.getenv('REQUIREMENT_STATUSES_TABLE', 'f1tof12-re
 CANDIDATE_STATUSES_TABLE = os.getenv('CANDIDATE_STATUSES_TABLE', 'f1tof12-candidate-statuses')
 COUNTERS_TABLE = os.getenv('COUNTERS_TABLE', 'f1tof12-counters')
 CANDIDATES_TABLE = os.getenv('CANDIDATES_TABLE', 'f1tof12-candidates')
+PROCESS_PROFILES_TABLE = os.getenv('PROCESS_PROFILES_TABLE', 'f1tof12-process-profiles')

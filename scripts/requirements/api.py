@@ -145,7 +145,7 @@ def set_requirement_spoc(requirement_id: int, spoc_data: RequirementSPOC, user_i
     except Exception as e:
         handle_error(e, "set requirement SPOC")
 
-@router.put("/{requirement_id}/recruiter")
+@router.put("/{requirement_id}/assign_recruiter")
 def assign_recruiter(requirement_id: int, recruiter_data: RequirementRecruiter, user_info: dict = Depends(require_lead)):
     try:
         from scripts.users.api import get_cognito_config
@@ -165,6 +165,14 @@ def assign_recruiter(requirement_id: int, recruiter_data: RequirementRecruiter, 
             })
         
         update_requirement_or_404(requirement_id, {"recruiter_name": recruiter_data.recruiter_name})
+        # Add new record in process_profiles table with recruiter_name and requirement_id
+        db = get_database()
+        db.create_process_profile({
+            "requirement_id": requirement_id,
+            "recruiter_name": recruiter_data.recruiter_name,
+            "status": 1
+        })
+
         return success_response(message="Recruiter assigned to requirement successfully")
     except HTTPException:
         raise

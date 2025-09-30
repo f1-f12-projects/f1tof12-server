@@ -36,6 +36,12 @@ class ProfileUpdate(BaseModel):
     notice_period: Optional[str] = None
     status: Optional[str] = None
 
+class ProcessProfileCreate(BaseModel):
+    requirement_id: int
+    candidate_id: int
+    status: int = 1
+    remarks: Optional[str] = None
+
 @router.post("/add")
 def add_profile(profile: ProfileCreate, user_info: dict = Depends(require_recruiter)):
     try:
@@ -101,3 +107,19 @@ def view_requirements(user_info: dict = Depends(require_recruiter)):
         return success_response(requirements_data, "Requirements retrieved successfully")
     except Exception as e:
         handle_error(e, "view requirements")
+
+@router.post("/add-to-requirement")
+def add_profile_to_requirement(process_profile: ProcessProfileCreate, user_info: dict = Depends(require_recruiter)):
+    try:
+        db = get_database()
+        profile_data = {
+            "requirement_id": process_profile.requirement_id,
+            "candidate_id": process_profile.candidate_id,
+            "recruiter_name": user_info.get('username'),
+            "status": process_profile.status,
+            "remarks": process_profile.remarks
+        }
+        result = db.create_process_profile(profile_data)
+        return success_response(result, "Profile added to requirement successfully")
+    except Exception as e:
+        handle_error(e, "add profile to requirement")

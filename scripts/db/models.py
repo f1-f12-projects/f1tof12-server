@@ -100,3 +100,15 @@ class Invoice(Base):
     remarks = Column(String)
     
     company = relationship("Company")
+
+class ProcessProfile(Base):
+    __tablename__ = "process_profiles"
+    id = Column(Integer, primary_key=True, index=True)
+    requirement_id = Column(Integer, ForeignKey("requirements.requirement_id"))
+    recruiter_name = Column(String)
+    candidate_id = Column(Integer, ForeignKey("candidates.id"))
+    status = Column(Integer)
+    remarks = Column(String)
+    
+    requirement = relationship("Requirement")
+    candidate = relationship("Candidate")

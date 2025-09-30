@@ -8,6 +8,7 @@ __changelog__ = {
     "2.4.0": [
         "Fixed DynamoDBAdapter abstract class implementation by adding missing candidate methods",
         "Implemented candidate related APIs"
+        "Implemented process profile related APIs"
     ],
     "2.3.0": [
         "Added requirement statuses from database",

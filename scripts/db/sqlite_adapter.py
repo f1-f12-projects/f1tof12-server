@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from contextlib import contextmanager
 from scripts.db.database import get_db
-from scripts.db.models import User, Company, Invoice, SPOC, Requirement, RequirementStatus, Candidate, CandidateStatus
+from scripts.db.models import User, Company, Invoice, SPOC, Requirement, RequirementStatus, Candidate, CandidateStatus, ProcessProfile
 from scripts.db.database_factory import DatabaseInterface
 
 class SQLiteAdapter(DatabaseInterface):
@@ -148,3 +148,15 @@ class SQLiteAdapter(DatabaseInterface):
         with self._db_session() as db:
             statuses = db.query(CandidateStatus).all()
             return [self._to_dict(status) for status in statuses]
+    
+    def create_process_profile(self, profile_data: Dict[str, Any]) -> Dict[str, Any]:
+        # Check if record already exists
+        with self._db_session() as db:
+            existing = db.query(ProcessProfile).filter(
+                ProcessProfile.requirement_id == profile_data['requirement_id'],
+                ProcessProfile.recruiter_name == profile_data['recruiter_name']
+            ).first()
+            if existing:
+                return self._to_dict(existing)
+        
+        return self._create_record(ProcessProfile, **profile_data)

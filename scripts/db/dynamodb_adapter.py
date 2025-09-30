@@ -3,7 +3,7 @@ from typing import Optional, List, Dict, Any
 from datetime import datetime, timezone
 from botocore.exceptions import ClientError
 from scripts.db.database_factory import DatabaseInterface
-from scripts.db.config import AWS_REGION, USERS_TABLE, COMPANIES_TABLE, SPOCS_TABLE, INVOICES_TABLE, REQUIREMENTS_TABLE, REQUIREMENT_STATUSES_TABLE, CANDIDATES_TABLE, CANDIDATE_STATUSES_TABLE
+from scripts.db.config import AWS_REGION, USERS_TABLE, COMPANIES_TABLE, SPOCS_TABLE, INVOICES_TABLE, REQUIREMENTS_TABLE, REQUIREMENT_STATUSES_TABLE, CANDIDATES_TABLE, CANDIDATE_STATUSES_TABLE, PROCESS_PROFILES_TABLE
 
 class DynamoDBAdapter(DatabaseInterface):
     def __init__(self):
@@ -16,6 +16,7 @@ class DynamoDBAdapter(DatabaseInterface):
         self.requirement_statuses_table = self.dynamodb.Table(REQUIREMENT_STATUSES_TABLE)
         self.candidates_table = self.dynamodb.Table(CANDIDATES_TABLE)
         self.candidate_statuses_table = self.dynamodb.Table(CANDIDATE_STATUSES_TABLE)
+        self.process_profiles_table = self.dynamodb.Table(PROCESS_PROFILES_TABLE)
     
     def create_user(self, username: str, hashed_password: str) -> Dict[str, Any]:
         user_data = {
@@ -257,6 +258,26 @@ class DynamoDBAdapter(DatabaseInterface):
             return response.get('Items', [])
         except ClientError:
             return []
+    
+    def create_process_profile(self, profile_data: Dict[str, Any]) -> Dict[str, Any]:
+        # Check if record already exists
+        try:
+            response = self.process_profiles_table.scan(
+                FilterExpression='requirement_id = :req_id AND recruiter_name = :recruiter',
+                ExpressionAttributeValues={
+                    ':req_id': profile_data['requirement_id'],
+                    ':recruiter': profile_data['recruiter_name']
+                }
+            )
+            if response.get('Items'):
+                return response['Items'][0]  # Return existing record
+        except ClientError:
+            pass
+        
+        profile_id = self._get_next_id('process_profiles')
+        profile_data['id'] = profile_id
+        self.process_profiles_table.put_item(Item=profile_data)
+        return profile_data
     
     def _get_next_id(self, table_type: str) -> int:
         """Get next auto-increment ID for a table type"""

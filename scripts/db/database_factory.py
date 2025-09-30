@@ -90,6 +90,10 @@ class DatabaseInterface(ABC):
     @abstractmethod
     def list_candidate_statuses(self) -> List[Dict[str, Any]]:
         pass
+    
+    @abstractmethod
+    def create_process_profile(self, profile_data: Dict[str, Any]) -> Dict[str, Any]:
+        pass
 
 def get_database() -> DatabaseInterface:
     """Factory function to return appropriate database implementation"""
