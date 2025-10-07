@@ -50,7 +50,7 @@ class InvoiceResponse(BaseModel):
 def create_invoice(invoice: InvoiceCreate, user_info: dict = Depends(require_finance_or_manager)):
     try:
         db = get_database()
-        invoice_data = db.create_invoice(invoice.dict())
+        invoice_data = db.invoice.create_invoice(invoice.dict())
         return success_response(invoice_data, "Invoice created successfully")
     except Exception as e:
         handle_error(e, "create invoice")
@@ -59,7 +59,7 @@ def create_invoice(invoice: InvoiceCreate, user_info: dict = Depends(require_fin
 def get_invoices(user_info: dict = Depends(require_finance_or_manager)):
     try:
         db = get_database()
-        invoices_data = db.list_invoices()
+        invoices_data = db.invoice.list_invoices()
         return success_response(invoices_data, "Invoices retrieved successfully")
     except Exception as e:
         handle_error(e, "get invoices")
@@ -68,7 +68,7 @@ def get_invoices(user_info: dict = Depends(require_finance_or_manager)):
 def get_invoice(invoice_id: int, user_info: dict = Depends(require_finance_or_manager)):
     try:
         db = get_database()
-        invoice = db.get_invoice(invoice_id)
+        invoice = db.invoice.get_invoice(invoice_id)
         if not invoice:
             raise HTTPException(status_code=404, detail={
                 "error": "INVOICE_NOT_FOUND",
@@ -85,7 +85,7 @@ def get_invoice(invoice_id: int, user_info: dict = Depends(require_finance_or_ma
 def update_invoice(invoice_id: int, status_update: InvoiceStatusUpdate, user_info: dict = Depends(require_finance_or_manager)):
     try:
         db = get_database()
-        success = db.update_invoice(invoice_id, {"status": status_update.status})
+        success = db.invoice.update_invoice(invoice_id, {"status": status_update.status})
         if not success:
             raise HTTPException(status_code=404, detail={
                 "error": "INVOICE_NOT_FOUND",
@@ -93,7 +93,7 @@ def update_invoice(invoice_id: int, status_update: InvoiceStatusUpdate, user_inf
                 "code": "INV_404"
             })
         
-        updated_invoice = db.get_invoice(invoice_id)
+        updated_invoice = db.invoice.get_invoice(invoice_id)
         return success_response(updated_invoice, "Invoice status updated successfully")
     except HTTPException:
         raise

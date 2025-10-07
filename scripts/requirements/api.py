@@ -54,7 +54,7 @@ class RequirementRemarksUpdate(BaseModel):
 
 def get_requirement_or_404(requirement_id: int):
     db = get_database()
-    current_req = db.get_requirement(requirement_id)
+    current_req = db.requirement.get_requirement(requirement_id)
     if not current_req:
         raise HTTPException(status_code=404, detail={"error": "REQUIREMENT_NOT_FOUND", "message": "Requirement not found", "code": "REQ_404"})
     return current_req
@@ -66,7 +66,7 @@ def append_remark(old_remarks: str, new_remark: str, username: str) -> str:
 
 def update_requirement_or_404(requirement_id: int, update_data: dict) -> None:
     db = get_database()
-    success = db.update_requirement(requirement_id, update_data)
+    success = db.requirement.update_requirement(requirement_id, update_data)
     if not success:
         raise HTTPException(status_code=404, detail={"error": "REQUIREMENT_NOT_FOUND", "message": "Requirement not found", "code": "REQ_404"})
 
@@ -87,7 +87,18 @@ def add_requirement(requirement: RequirementCreate, user_info: dict = Depends(re
             requirement_dict['status_id'] = requirement_dict.pop('status')
         
         db = get_database()
-        requirement_data = db.create_requirement(requirement_dict)
+        requirement_data = db.requirement.create_requirement(requirement_dict)
+
+        # Upon success, add record to process_profile table
+        process_profile_data = {
+            "requirement_id": requirement_data['requirement_id'],
+            "recruiter_name": "",
+            "status": 1,
+            "candidate_id": None,
+            "remarks": ""
+        }
+        db.process_profile.create_process_profile(process_profile_data)
+
         return success_response(requirement_data, "Requirement added successfully")
     except HTTPException:
         raise
@@ -98,7 +109,7 @@ def add_requirement(requirement: RequirementCreate, user_info: dict = Depends(re
 def list_requirements(user_info: dict = Depends(require_lead_or_recruiter)):
     try:
         db = get_database()
-        requirements_data = db.list_requirements()
+        requirements_data = db.requirement.list_requirements()
         return success_response(requirements_data, "Requirements retrieved successfully")
     except Exception as e:
         handle_error(e, "list requirements")
@@ -107,7 +118,7 @@ def list_requirements(user_info: dict = Depends(require_lead_or_recruiter)):
 def get_requirement_statuses(user_info: dict = Depends(require_lead_or_recruiter)):
     try:
         db = get_database()
-        statuses = db.list_requirement_statuses()
+        statuses = db.requirement.list_requirement_statuses()
         return success_response(statuses, "Requirement statuses retrieved successfully")
     except Exception as e:
         handle_error(e, "get requirement statuses")
@@ -169,7 +180,7 @@ def assign_recruiter(requirement_id: int, recruiter_data: RequirementRecruiter, 
         update_requirement_or_404(requirement_id, {"recruiter_name": recruiter_data.recruiter_name})
         # Add new record in process_profiles table with recruiter_name and requirement_id
         db = get_database()
-        db.create_process_profile({
+        db.process_profile.create_process_profile({
             "requirement_id": requirement_id,
             "recruiter_name": recruiter_data.recruiter_name,
             "status": 1

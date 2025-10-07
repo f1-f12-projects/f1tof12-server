@@ -22,6 +22,7 @@ class ProfileCreate(BaseModel):
     expected_ctc: Optional[float] = None
     notice_period: Optional[str] = None
     status: str = "New"
+    requirement_id: Optional[int] = None
 
 class ProfileUpdate(BaseModel):
     name: Optional[str] = None
@@ -46,7 +47,18 @@ class ProcessProfileCreate(BaseModel):
 def add_profile(profile: ProfileCreate, user_info: dict = Depends(require_recruiter)):
     try:
         db = get_database()
-        profile_data = db.create_candidate(profile.dict())
+        profile_data = db.candidate.create_candidate(profile.dict())
+
+        # If requirement_id is passed, then update process_profile record with candidate_id details
+        if profile.requirement_id:
+            process_profile_data = {
+                "requirement_id": profile.requirement_id,
+                "recruiter_name": user_info.get('username', 'unknown'),
+                "status": 2,
+                "candidate_id": profile_data['id'],
+                "remarks": ""
+            }
+            db.process_profile.upsert_process_profile(process_profile_data)
         return success_response(profile_data, "Profile added successfully")
     except Exception as e:
         handle_error(e, "add profile")
@@ -55,10 +67,23 @@ def add_profile(profile: ProfileCreate, user_info: dict = Depends(require_recrui
 def list_profiles(user_info: dict = Depends(require_recruiter)):
     try:
         db = get_database()
-        profiles_data = db.list_candidates()
+        profiles_data = db.candidate.list_candidates()
         return success_response(profiles_data, "Profiles retrieved successfully")
     except Exception as e:
         handle_error(e, "list profiles")
+
+@router.get("/{profile_id}")
+def get_profile(profile_id: int, user_info: dict = Depends(require_recruiter)):
+    try:
+        db = get_database()
+        profile_data = db.candidate.get_candidate(profile_id)
+        if not profile_data:
+            raise HTTPException(status_code=404, detail="Profile not found")
+        return success_response(profile_data, "Profile retrieved successfully")
+    except HTTPException:
+        raise
+    except Exception as e:
+        handle_error(e, "get profile")
 
 @router.put("/{profile_id}/update")
 def update_profile(profile_id: int, profile_update: ProfileUpdate, user_info: dict = Depends(require_recruiter)):
@@ -69,7 +94,7 @@ def update_profile(profile_id: int, profile_update: ProfileUpdate, user_info: di
             raise HTTPException(status_code=400, detail="No valid fields to update")
         
         db = get_database()
-        success = db.update_candidate(profile_id, update_data)
+        success = db.candidate.update_candidate(profile_id, update_data)
         if not success:
             raise HTTPException(status_code=404, detail="Profile not found")
         
@@ -84,12 +109,12 @@ def update_status(profile_id: int, status_update: StatusUpdate, user_info: dict 
     try:
         # Validate status value
         db = get_database()
-        candidate_statuses = db.list_candidate_statuses()
+        candidate_statuses = db.candidate.list_candidate_statuses()
         valid_statuses = [status['id'] for status in candidate_statuses]
         if status_update.status not in valid_statuses:
             raise HTTPException(status_code=400, detail=f"Invalid status passed.")
         
-        success = db.update_candidate(profile_id, {"status": status_update.status})
+        success = db.candidate.update_candidate(profile_id, {"status": status_update.status})
         if not success:
             raise HTTPException(status_code=404, detail="Profile not found")
         
@@ -103,7 +128,7 @@ def update_status(profile_id: int, status_update: StatusUpdate, user_info: dict 
 def view_requirements(user_info: dict = Depends(require_recruiter)):
     try:
         db = get_database()
-        requirements_data = db.list_requirements()
+        requirements_data = db.requirement.list_requirements()
         return success_response(requirements_data, "Requirements retrieved successfully")
     except Exception as e:
         handle_error(e, "view requirements")
@@ -119,7 +144,7 @@ def add_profile_to_requirement(process_profile: ProcessProfileCreate, user_info:
             "status": process_profile.status,
             "remarks": process_profile.remarks
         }
-        result = db.create_process_profile(profile_data)
+        result = db.process_profile.create_process_profile(profile_data)
         return success_response(result, "Profile added to requirement successfully")
     except Exception as e:
         handle_error(e, "add profile to requirement")

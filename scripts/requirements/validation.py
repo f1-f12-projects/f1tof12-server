@@ -18,7 +18,7 @@ def validate_requirement_fields(requirement: 'RequirementCreate'):
     
     # Check if company exists and is active
     db = get_database()
-    companies = db.list_companies()
+    companies = db.company.list_companies()
     company = next((c for c in companies if c['id'] == requirement.company_id), None)
     if not company:
         raise HTTPException(status_code=404, detail="Company not found")

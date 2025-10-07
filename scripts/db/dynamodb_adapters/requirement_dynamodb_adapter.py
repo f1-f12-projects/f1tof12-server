@@ -1,0 +1,57 @@
+from typing import Optional, List, Dict, Any
+from botocore.exceptions import ClientError
+from scripts.db.config import REQUIREMENTS_TABLE, REQUIREMENT_STATUSES_TABLE
+from .base_dynamodb_adapter import BaseDynamoDBAdapter
+
+class RequirementDynamoDBAdapter(BaseDynamoDBAdapter):
+    def __init__(self):
+        super().__init__()
+        self.requirements_table = self.dynamodb.Table(REQUIREMENTS_TABLE)
+        self.requirement_statuses_table = self.dynamodb.Table(REQUIREMENT_STATUSES_TABLE)
+    
+    def create_requirement(self, requirement_data: Dict[str, Any]) -> Dict[str, Any]:
+        requirement_id = self._get_next_id('requirements')
+        requirement_data['requirement_id'] = requirement_id
+        self.requirements_table.put_item(Item=requirement_data)
+        return requirement_data
+    
+    def list_requirements(self) -> List[Dict[str, Any]]:
+        try:
+            response = self.requirements_table.scan()
+            return response.get('Items', [])
+        except ClientError:
+            return []
+    
+    def get_requirement(self, requirement_id: int) -> Optional[Dict[str, Any]]:
+        try:
+            response = self.requirements_table.get_item(Key={'requirement_id': requirement_id})
+            return response.get('Item')
+        except ClientError:
+            return None
+    
+    def update_requirement(self, requirement_id: int, update_data: Dict[str, Any]) -> bool:
+        try:
+            update_expression = "SET "
+            expression_values = {}
+            
+            for key, value in update_data.items():
+                update_expression += f"{key} = :{key}, "
+                expression_values[f":{key}"] = value
+            
+            update_expression = update_expression.rstrip(', ')
+            
+            self.requirements_table.update_item(
+                Key={'requirement_id': requirement_id},
+                UpdateExpression=update_expression,
+                ExpressionAttributeValues=expression_values
+            )
+            return True
+        except ClientError:
+            return False
+    
+    def list_requirement_statuses(self) -> List[Dict[str, Any]]:
+        try:
+            response = self.requirement_statuses_table.scan()
+            return response.get('Items', [])
+        except ClientError:
+            return []

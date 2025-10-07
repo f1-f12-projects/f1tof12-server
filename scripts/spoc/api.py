@@ -34,7 +34,7 @@ class SPOCUpdate(BaseModel):
 def add_spoc(spoc: SPOCCreate, user_info: dict = Depends(require_manager)):
     try:
         db = get_database()
-        spoc_data = db.create_spoc(
+        spoc_data = db.spoc.create_spoc(
             spoc.company_id,
             spoc.name,
             spoc.phone,
@@ -50,7 +50,7 @@ def add_spoc(spoc: SPOCCreate, user_info: dict = Depends(require_manager)):
 def list_spocs(user_info: dict = Depends(require_manager)):
     try:
         db = get_database()
-        spocs_data = db.list_spocs()
+        spocs_data = db.spoc.list_spocs()
         return success_response(spocs_data, "SPOCs retrieved successfully")
     except Exception as e:
         handle_error(e, "list SPOCs")
@@ -78,7 +78,7 @@ def update_spoc(spoc_id: int, spoc_update: SPOCUpdate, user_info: dict = Depends
             })
         
         db = get_database()
-        success = db.update_spoc(spoc_id, update_data)
+        success = db.spoc.update_spoc(spoc_id, update_data)
         if not success:
             raise HTTPException(status_code=404, detail={
                 "error": "SPOC_NOT_FOUND",
