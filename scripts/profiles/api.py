@@ -72,6 +72,15 @@ def list_profiles(user_info: dict = Depends(require_recruiter)):
     except Exception as e:
         handle_error(e, "list profiles")
 
+@router.get("/candidate-statuses")
+def get_candidate_statuses(user_info: dict = Depends(require_recruiter)):
+    try:
+        db = get_database()
+        statuses_data = db.candidate.list_candidate_statuses()
+        return success_response(statuses_data, "Candidate statuses retrieved successfully")
+    except Exception as e:
+        handle_error(e, "get candidate statuses")
+
 @router.get("/{profile_id}")
 def get_profile(profile_id: int, user_info: dict = Depends(require_recruiter)):
     try:

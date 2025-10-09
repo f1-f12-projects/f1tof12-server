@@ -1,6 +1,6 @@
 from typing import Optional, Dict, Any
-from scripts.db.models import ProcessProfile
 from .base_adapter import BaseAdapter
+from scripts.db.models import ProcessProfile
 
 class ProcessProfileAdapter(BaseAdapter):
     def create_process_profile(self, profile_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -62,3 +62,10 @@ class ProcessProfileAdapter(BaseAdapter):
             ).update({ProcessProfile.candidate_id: candidate_id})
             db.commit()
             return result > 0
+    
+    def get_profiles_by_requirement(self, requirement_id: int) -> list:
+        with self._db_session() as db:
+            profiles = db.query(ProcessProfile).filter(
+                ProcessProfile.requirement_id == requirement_id
+            ).all()
+            return [self._to_dict(profile) for profile in profiles]

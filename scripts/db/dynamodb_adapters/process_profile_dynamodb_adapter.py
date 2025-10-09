@@ -51,3 +51,15 @@ class ProcessProfileDynamoDBAdapter(BaseDynamoDBAdapter):
             profile_data['id'] = profile_id
             self.process_profiles_table.put_item(Item=profile_data)
             return profile_data
+    
+    def get_profiles_by_requirement(self, requirement_id: int) -> list:
+        try:
+            response = self.process_profiles_table.scan(
+                FilterExpression='requirement_id = :req_id',
+                ExpressionAttributeValues={
+                    ':req_id': requirement_id
+                }
+            )
+            return response.get('Items', [])
+        except ClientError:
+            return []

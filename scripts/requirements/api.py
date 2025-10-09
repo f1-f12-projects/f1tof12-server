@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel, Field
 from scripts.db.database_factory import get_database
 from auth import require_lead, require_lead_or_recruiter
@@ -123,6 +123,15 @@ def get_requirement_statuses(user_info: dict = Depends(require_lead_or_recruiter
     except Exception as e:
         handle_error(e, "get requirement statuses")
 
+@router.get("/{requirement_id}/profilecounts")
+def get_profiles_by_requirement(requirement_id: int, response: Response, user_info: dict = Depends(require_lead_or_recruiter)):
+    try:
+        db = get_database()
+        profiles_data = db.process_profile.get_profiles_by_requirement(requirement_id)
+        return success_response(profiles_data, "Process profiles retrieved successfully")
+    except Exception as e:
+        handle_error(e, "get profiles by requirement")
+
 @router.get("/{requirement_id}")
 def get_requirement(requirement_id: int, user_info: dict = Depends(require_lead_or_recruiter)):
     try:
@@ -163,7 +172,7 @@ def assign_recruiter(requirement_id: int, recruiter_data: RequirementRecruiter, 
     try:
         from scripts.users.api import get_cognito_config
         USER_POOL_ID, _, _ = get_cognito_config()
-        cognito_client = boto3.client('cognito-idp', region_name=AWS_REGION)
+        cognito_client = boto3.client('cognito-idp', region_name=AWS_REGION)  # type: ignore
         
         try:
             cognito_client.admin_get_user(
