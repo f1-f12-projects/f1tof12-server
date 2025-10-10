@@ -47,12 +47,17 @@ class ProcessProfileCreate(BaseModel):
 def add_profile(profile: ProfileCreate, user_info: dict = Depends(require_recruiter)):
     try:
         db = get_database()
-        profile_data = db.candidate.create_candidate(profile.dict())
+        # Extract requirement_id before creating candidate
+        requirement_id = profile.requirement_id
+        profile_dict = profile.dict()
+        profile_dict.pop('requirement_id', None)  # Remove requirement_id from candidate data
+        
+        profile_data = db.candidate.create_candidate(profile_dict)
 
         # If requirement_id is passed, then update process_profile record with candidate_id details
-        if profile.requirement_id:
+        if requirement_id:
             process_profile_data = {
-                "requirement_id": profile.requirement_id,
+                "requirement_id": requirement_id,
                 "recruiter_name": user_info.get('username', 'unknown'),
                 "status": 2,
                 "candidate_id": profile_data['id'],
