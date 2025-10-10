@@ -3,7 +3,7 @@ from scripts.db.dynamodb_adapters.company_dynamodb_adapter import CompanyDynamoD
 from scripts.db.dynamodb_adapters.spoc_dynamodb_adapter import SPOCDynamoDBAdapter
 from scripts.db.dynamodb_adapters.invoice_dynamodb_adapter import InvoiceDynamoDBAdapter
 from scripts.db.dynamodb_adapters.requirement_dynamodb_adapter import RequirementDynamoDBAdapter
-from scripts.db.dynamodb_adapters.candidate_dynamodb_adapter import CandidateDynamoDBAdapter
+from scripts.db.dynamodb_adapters.profile_dynamodb_adapter import ProfileDynamoDBAdapter
 from scripts.db.dynamodb_adapters.process_profile_dynamodb_adapter import ProcessProfileDynamoDBAdapter
 
 class DynamoDBAdapter:
@@ -13,5 +13,5 @@ class DynamoDBAdapter:
         self.spoc = SPOCDynamoDBAdapter()
         self.invoice = InvoiceDynamoDBAdapter()
         self.requirement = RequirementDynamoDBAdapter()
-        self.candidate = CandidateDynamoDBAdapter()
+        self.profile = ProfileDynamoDBAdapter()
         self.process_profile = ProcessProfileDynamoDBAdapter()

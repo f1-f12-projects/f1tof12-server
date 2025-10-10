@@ -41,8 +41,8 @@ class RequirementStatus(Base):
     id = Column(Integer, primary_key=True, index=True)
     status = Column(String, unique=True, index=True)
 
-class CandidateStatus(Base):
-    __tablename__ = "candidate_status"
+class ProfileStatus(Base):
+    __tablename__ = "profile_status"
     id = Column(Integer, primary_key=True, index=True)
     status = Column(String, unique=True, index=True)
     stage = Column(String)
@@ -70,8 +70,8 @@ class Requirement(Base):
     spoc = relationship("SPOC")
     status = relationship("RequirementStatus")
 
-class Candidate(Base):
-    __tablename__ = "candidates"
+class Profile(Base):
+    __tablename__ = "profiles"
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String)
     email = Column(String)
@@ -107,9 +107,9 @@ class ProcessProfile(Base):
     id = Column(Integer, primary_key=True, index=True)
     requirement_id = Column(Integer, ForeignKey("requirements.requirement_id"))
     recruiter_name = Column(String)
-    candidate_id = Column(Integer, ForeignKey("candidates.id"))
+    profile_id = Column(Integer, ForeignKey("profiles.id"))
     status = Column(Integer)
     remarks = Column(String)
     
     requirement = relationship("Requirement")
-    candidate = relationship("Candidate")
+    profile = relationship("Profile")

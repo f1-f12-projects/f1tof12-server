@@ -27,7 +27,7 @@ class RequirementCreate(BaseModel):
     role: Optional[str] = Field(None, alias="role")
     
     class Config:
-        allow_population_by_field_name = True
+        populate_by_name = True
 
 class RequirementUpdate(BaseModel):
     key_skill: Optional[str] = None
@@ -94,7 +94,7 @@ def add_requirement(requirement: RequirementCreate, user_info: dict = Depends(re
             "requirement_id": requirement_data['requirement_id'],
             "recruiter_name": "",
             "status": 1,
-            "candidate_id": None,
+            "profile_id": None,
             "remarks": ""
         }
         db.process_profile.create_process_profile(process_profile_data)

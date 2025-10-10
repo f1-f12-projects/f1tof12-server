@@ -18,7 +18,7 @@ class ProcessProfileAdapter(BaseAdapter):
         with self._db_session() as db:
             existing = db.query(ProcessProfile).filter(
                 ProcessProfile.requirement_id == profile_data['requirement_id'],
-                ProcessProfile.candidate_id == profile_data['candidate_id']
+                ProcessProfile.profile_id == profile_data['profile_id']
             ).first()
             
             if existing:
@@ -37,29 +37,29 @@ class ProcessProfileAdapter(BaseAdapter):
             db.commit()
             return result > 0
     
-    def update_process_profile_status(self, requirement_id: int, candidate_id: int, status: int) -> bool:
+    def update_process_profile_status(self, requirement_id: int, profile_id: int, status: int) -> bool:
         with self._db_session() as db:
             result = db.query(ProcessProfile).filter(
                 ProcessProfile.requirement_id == requirement_id,
-                ProcessProfile.candidate_id == candidate_id
+                ProcessProfile.profile_id == profile_id
             ).update({ProcessProfile.status: status})
             db.commit()
             return result > 0
     
-    def update_process_profile_remarks(self, requirement_id: int, candidate_id: int, remarks: Optional[str] = None) -> bool:
+    def update_process_profile_remarks(self, requirement_id: int, profile_id: int, remarks: Optional[str] = None) -> bool:
         with self._db_session() as db:
             result = db.query(ProcessProfile).filter(
                 ProcessProfile.requirement_id == requirement_id,
-                ProcessProfile.candidate_id == candidate_id
+                ProcessProfile.profile_id == profile_id
             ).update({ProcessProfile.remarks: remarks})
             db.commit()
             return result > 0
     
-    def update_process_profile_candidate(self, requirement_id: int, candidate_id: int) -> bool:
+    def update_process_profile_profile(self, requirement_id: int, profile_id: int) -> bool:
         with self._db_session() as db:
             result = db.query(ProcessProfile).filter(
                 ProcessProfile.requirement_id == requirement_id
-            ).update({ProcessProfile.candidate_id: candidate_id})
+            ).update({ProcessProfile.profile_id: profile_id})
             db.commit()
             return result > 0
     

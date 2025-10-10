@@ -30,10 +30,10 @@ class ProcessProfileDynamoDBAdapter(BaseDynamoDBAdapter):
     def upsert_process_profile(self, profile_data: Dict[str, Any]) -> Dict[str, Any]:
         try:
             response = self.process_profiles_table.scan(
-                FilterExpression='requirement_id = :req_id AND candidate_id = :cand_id',
+                FilterExpression='requirement_id = :req_id AND profile_id = :prof_id',
                 ExpressionAttributeValues={
                     ':req_id': profile_data['requirement_id'],
-                    ':cand_id': profile_data['candidate_id']
+                    ':prof_id': profile_data['profile_id']
                 }
             )
             
