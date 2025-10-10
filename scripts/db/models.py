@@ -84,6 +84,7 @@ class Profile(Base):
     expected_ctc = Column(Float)
     notice_period = Column(String)
     status = Column(Integer, default=1)
+    remarks = Column(String)
     created_date = Column(DateTime, default=lambda: datetime.now(ZoneInfo('Asia/Kolkata')))
     updated_date = Column(DateTime, default=lambda: datetime.now(ZoneInfo('Asia/Kolkata')), onupdate=lambda: datetime.now(ZoneInfo('Asia/Kolkata')))
 

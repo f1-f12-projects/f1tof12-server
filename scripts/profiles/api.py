@@ -3,10 +3,14 @@ from pydantic import BaseModel
 from scripts.db.database_factory import get_database
 from auth import require_recruiter, require_lead_or_recruiter
 from scripts.utils.response import success_response, handle_error
+from scripts.utils.remarks import append_remarks
 from typing import Optional
 
 class StatusUpdate(BaseModel):
     status: int
+
+class RemarksUpdate(BaseModel):
+    remarks: str
 
 router = APIRouter(prefix="/profiles", tags=["profiles"])
 
@@ -35,7 +39,8 @@ class ProfileUpdate(BaseModel):
     current_ctc: Optional[float] = None
     expected_ctc: Optional[float] = None
     notice_period: Optional[str] = None
-    status: Optional[str] = None
+    status: Optional[int] = None
+    remarks: Optional[str] = None
 
 class ProcessProfileCreate(BaseModel):
     requirement_id: int
@@ -108,6 +113,16 @@ def update_profile(profile_id: int, profile_update: ProfileUpdate, user_info: di
             raise HTTPException(status_code=400, detail="No valid fields to update")
         
         db = get_database()
+        
+        # Handle remarks appending if provided
+        if 'remarks' in update_data:
+            profile_data = db.profile.get_profile(profile_id)
+            if not profile_data:
+                raise HTTPException(status_code=404, detail="Profile not found")
+            
+            existing_remarks = profile_data.get('remarks', '') or ''
+            update_data['remarks'] = append_remarks(existing_remarks, update_data['remarks'], user_info.get('username', 'unknown'))
+        
         success = db.profile.update_profile(profile_id, update_data)
         if not success:
             raise HTTPException(status_code=404, detail="Profile not found")
@@ -137,6 +152,27 @@ def update_status(profile_id: int, status_update: StatusUpdate, user_info: dict 
         raise
     except Exception as e:
         handle_error(e, "update status")
+
+@router.put("/{profile_id}/remarks")
+def update_remarks(profile_id: int, remarks_update: RemarksUpdate, user_info: dict = Depends(require_recruiter)):
+    try:
+        db = get_database()
+        profile_data = db.profile.get_profile(profile_id)
+        if not profile_data:
+            raise HTTPException(status_code=404, detail="Profile not found")
+        
+        existing_remarks = profile_data.get('remarks', '') or ''
+        updated_remarks = append_remarks(existing_remarks, remarks_update.remarks, user_info.get('username', 'unknown'))
+        
+        success = db.profile.update_profile(profile_id, {"remarks": updated_remarks})
+        if not success:
+            raise HTTPException(status_code=404, detail="Profile not found")
+        
+        return success_response(message="Remarks updated successfully")
+    except HTTPException:
+        raise
+    except Exception as e:
+        handle_error(e, "update remarks")
 
 @router.get("/view-requirements")
 def view_requirements(user_info: dict = Depends(require_recruiter)):
