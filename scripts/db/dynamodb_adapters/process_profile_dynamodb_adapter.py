@@ -63,3 +63,56 @@ class ProcessProfileDynamoDBAdapter(BaseDynamoDBAdapter):
             return response.get('Items', [])
         except ClientError:
             return []
+    
+    def get_active_profiles_by_requirement(self, requirement_id: int) -> list:
+        try:
+            response = self.process_profiles_table.scan(
+                FilterExpression='requirement_id = :req_id AND actively_working = :active',
+                ExpressionAttributeValues={
+                    ':req_id': requirement_id,
+                    ':active': 'Yes'
+                }
+            )
+            return response.get('Items', [])
+        except ClientError:
+            return []
+    
+    def update_actively_working(self, requirement_id: int, profile_id: int, actively_working: str) -> bool:
+        try:
+            response = self.process_profiles_table.scan(
+                FilterExpression='requirement_id = :req_id AND profile_id = :prof_id',
+                ExpressionAttributeValues={
+                    ':req_id': requirement_id,
+                    ':prof_id': profile_id
+                }
+            )
+            
+            if response.get('Items'):
+                item = response['Items'][0]
+                self.process_profiles_table.put_item(
+                    Item={**item, 'actively_working': actively_working}
+                )
+                return True
+            return False
+        except ClientError:
+            return False
+    
+    def update_actively_working_by_recruiter(self, requirement_id: int, recruiter_name: str, actively_working: str) -> bool:
+        try:
+            response = self.process_profiles_table.scan(
+                FilterExpression='requirement_id = :req_id AND recruiter_name = :recruiter',
+                ExpressionAttributeValues={
+                    ':req_id': requirement_id,
+                    ':recruiter': recruiter_name
+                }
+            )
+            
+            if response.get('Items'):
+                item = response['Items'][0]
+                self.process_profiles_table.put_item(
+                    Item={**item, 'actively_working': actively_working}
+                )
+                return True
+            return False
+        except ClientError:
+            return False

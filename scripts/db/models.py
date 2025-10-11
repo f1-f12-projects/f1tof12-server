@@ -111,6 +111,7 @@ class ProcessProfile(Base):
     profile_id = Column(Integer, ForeignKey("profiles.id"))
     status = Column(Integer)
     remarks = Column(String)
+    actively_working = Column(String, default="Yes")
     
     requirement = relationship("Requirement")
     profile = relationship("Profile")

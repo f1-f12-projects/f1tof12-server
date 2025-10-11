@@ -52,6 +52,9 @@ class RequirementStatusUpdate(BaseModel):
 class RequirementRemarksUpdate(BaseModel):
     remarks: str
 
+class ActivelyWorkingUpdate(BaseModel):
+    actively_working: str
+
 def get_requirement_or_404(requirement_id: int):
     db = get_database()
     current_req = db.requirement.get_requirement(requirement_id)
@@ -192,7 +195,8 @@ def assign_recruiter(requirement_id: int, recruiter_data: RequirementRecruiter, 
         db.process_profile.create_process_profile({
             "requirement_id": requirement_id,
             "recruiter_name": recruiter_data.recruiter_name,
-            "status": 1
+            "status": 1,
+            "actively_working": "Yes"
         })
 
         return success_response(message="Recruiter assigned to requirement successfully")
@@ -201,15 +205,23 @@ def assign_recruiter(requirement_id: int, recruiter_data: RequirementRecruiter, 
     except Exception as e:
         handle_error(e, "assign recruiter")
 
+@router.get("/{requirement_id}/recruiters")
+def get_requirement_recruiters(requirement_id: int, user_info: dict = Depends(require_lead_or_recruiter)):
+    try:
+        db = get_database()
+        profiles = db.process_profile.get_active_profiles_by_requirement(requirement_id)
+        recruiters = [p.get('recruiter_name') for p in profiles if p.get('recruiter_name', '').strip()]
+        return success_response(recruiters, "Recruiters retrieved successfully")
+    except Exception as e:
+        handle_error(e, "get requirement recruiters")
+
 @router.put("/{requirement_id}/remarks")
 def update_remarks(requirement_id: int, remarks_update: RequirementRemarksUpdate, user_info: dict = Depends(require_lead)):
     try:
         current_req = get_requirement_or_404(requirement_id)
-        
         old_remarks = current_req.get('remarks', '')
         username = user_info.get('username', 'unknown')
         new_remarks = append_remark(old_remarks, remarks_update.remarks, username)
-        
         update_requirement_or_404(requirement_id, {"remarks": new_remarks})
         return success_response(message="Remarks updated successfully")
     except HTTPException:
@@ -238,3 +250,21 @@ def update_status_with_remarks(requirement_id: int, status_update: RequirementSt
         raise
     except Exception as e:
         handle_error(e, "update status with remarks")
+
+@router.put("/{requirement_id}/{recruiter_name}/actively-working")
+def update_actively_working(requirement_id: int, recruiter_name: str, update_data: ActivelyWorkingUpdate, user_info: dict = Depends(require_lead_or_recruiter)):
+    try:
+        if update_data.actively_working not in ["Yes", "No"]:
+            raise HTTPException(status_code=400, detail="actively_working must be 'Yes' or 'No'")
+        
+        db = get_database()
+        success = db.process_profile.update_actively_working_by_recruiter(requirement_id, recruiter_name, update_data.actively_working)
+        
+        if not success:
+            raise HTTPException(status_code=404, detail="Process profile not found")
+        
+        return success_response(message=f"Actively working status updated to {update_data.actively_working}")
+    except HTTPException:
+        raise
+    except Exception as e:
+        handle_error(e, "update actively working status")

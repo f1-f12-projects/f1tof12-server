@@ -48,6 +48,8 @@ class ProcessProfileCreate(BaseModel):
     status: int = 1
     remarks: Optional[str] = None
 
+
+
 @router.post("/add")
 def add_profile(profile: ProfileCreate, user_info: dict = Depends(require_recruiter)):
     try:
@@ -198,3 +200,4 @@ def add_profile_to_requirement(process_profile: ProcessProfileCreate, user_info:
         return success_response(result, "Profile added to requirement successfully")
     except Exception as e:
         handle_error(e, "add profile to requirement")
+
