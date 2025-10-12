@@ -55,3 +55,43 @@ class RequirementDynamoDBAdapter(BaseDynamoDBAdapter):
             return response.get('Items', [])
         except ClientError:
             return []
+    
+    def get_open_requirements_by_company(self, company_id: int) -> List[Dict[str, Any]]:
+        try:
+            response = self.requirements_table.scan(
+                FilterExpression='company_id = :company_id AND status_id IN :open_statuses',
+                ExpressionAttributeValues={
+                    ':company_id': company_id,
+                    ':open_statuses': [1, 2, 3]
+                }
+            )
+            return response.get('Items', [])
+        except ClientError:
+            return []
+    
+    def get_open_requirements_by_company_and_recruiter(self, company_id: int, recruiter_name: str) -> List[Dict[str, Any]]:
+        from scripts.db.config import PROCESS_PROFILES_TABLE
+        try:
+            # Get requirements assigned to recruiter
+            process_profiles_table = self.dynamodb.Table(PROCESS_PROFILES_TABLE)
+            pp_response = process_profiles_table.scan(
+                FilterExpression='recruiter_name = :recruiter_name',
+                ExpressionAttributeValues={':recruiter_name': recruiter_name}
+            )
+            assigned_req_ids = [pp['requirement_id'] for pp in pp_response.get('Items', [])]
+            
+            if not assigned_req_ids:
+                return []
+            
+            # Get open requirements for company that are assigned to recruiter
+            response = self.requirements_table.scan(
+                FilterExpression='company_id = :company_id AND status_id IN :open_statuses AND requirement_id IN :req_ids',
+                ExpressionAttributeValues={
+                    ':company_id': company_id,
+                    ':open_statuses': [1, 2, 3],
+                    ':req_ids': assigned_req_ids
+                }
+            )
+            return response.get('Items', [])
+        except ClientError:
+            return []

@@ -40,3 +40,23 @@ class RequirementAdapter(BaseAdapter):
         with self._db_session() as db:
             statuses = db.query(RequirementStatus).all()
             return [self._to_dict(status) for status in statuses]
+    
+    def get_open_requirements_by_company(self, company_id: int) -> List[Dict[str, Any]]:
+        with self._db_session() as db:
+            requirements = db.query(Requirement).filter(
+                Requirement.company_id == company_id,
+                Requirement.status_id.in_([1, 2, 3])  # Open statuses (not 4=Closed, 5=Fulfilled)
+            ).all()
+            return [self._to_dict(req, ['expected_billing_date'], ['created_date', 'closed_date', 'updated_date']) for req in requirements]
+    
+    def get_open_requirements_by_company_and_recruiter(self, company_id: int, recruiter_name: str) -> List[Dict[str, Any]]:
+        from scripts.db.models import ProcessProfile
+        with self._db_session() as db:
+            requirements = db.query(Requirement).join(
+                ProcessProfile, Requirement.requirement_id == ProcessProfile.requirement_id
+            ).filter(
+                Requirement.company_id == company_id,
+                Requirement.status_id.in_([1, 2, 3]),
+                ProcessProfile.recruiter_name == recruiter_name
+            ).all()
+            return [self._to_dict(req, ['expected_billing_date'], ['created_date', 'closed_date', 'updated_date']) for req in requirements]

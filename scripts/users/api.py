@@ -6,7 +6,7 @@ from hmac import new as hmac_new
 from hashlib import sha256
 from base64 import b64encode
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from auth import verify_cognito_token, require_admin, require_manager, require_lead
+from auth import verify_cognito_token, require_admin, require_manager, require_lead, get_user_info
 from typing import Optional
 from scripts.utils.response import success_response, handle_error
 from scripts.constants import AWS_REGION, ALLOWED_ROLES, DEFAULT_ROLE
@@ -295,6 +295,47 @@ def get_cognito_users(user_info: dict = Depends(require_lead)):
     except Exception as e:
         logger.error(f"[ERROR] Get users API failed: {str(e)}")
         handle_error(e, "fetch users")
+
+@router.get("/user/{username}")
+def get_user_details(username: str, user_info: dict = Depends(get_user_info)):
+    logger.info(f"[ENTRY] Get user details API called for: {username}")
+    
+    # Check if user is accessing their own details or has lead permissions
+    if user_info['username'] != username:
+        # Require lead role for accessing other users' details
+        from scripts.constants import ROLES, LEAD_ROLE, MANAGER_ROLE
+        user_role = user_info['role']
+        if user_role not in [ROLES[LEAD_ROLE], ROLES[MANAGER_ROLE]]:
+            raise HTTPException(status_code=403, detail="Access denied. Lead role required to view other users.")
+    
+    USER_POOL_ID, _, _ = get_cognito_config()
+    client = boto3_client('cognito-idp', region_name=AWS_REGION)
+    try:
+        response = client.admin_get_user(UserPoolId=USER_POOL_ID, Username=username)
+        
+        def get_attr(attributes, name):
+            return next((attr['Value'] for attr in attributes if attr['Name'] == name), None)
+        
+        user_details = {
+            "username": response['Username'],
+            "email": get_attr(response['UserAttributes'], 'email'),
+            "phone_number": get_attr(response['UserAttributes'], 'phone_number'),
+            "given_name": get_attr(response['UserAttributes'], 'given_name'),
+            "family_name": get_attr(response['UserAttributes'], 'family_name'),
+            "role": get_attr(response['UserAttributes'], 'custom:role') or DEFAULT_ROLE,
+            "status": response['UserStatus'],
+            "created": response['UserCreateDate'].isoformat(),
+            "enabled": response['Enabled']
+        }
+        
+        logger.info(f"[EXIT] Get user details API successful for: {username}")
+        return success_response(user_details, "User details retrieved successfully")
+    except client.exceptions.UserNotFoundException:
+        logger.error(f"[ERROR] User not found: {username}")
+        raise HTTPException(status_code=404, detail={"error": "USER_NOT_FOUND", "message": "User not found", "code": "USER_404"})
+    except Exception as e:
+        logger.error(f"[ERROR] Get user details API failed for {username}: {str(e)}")
+        handle_error(e, "fetch user details")
 
 @router.put("/user/{target_username}/update")
 def update_user(target_username: str, user_update: UserUpdate, user_info: dict = Depends(require_admin)):

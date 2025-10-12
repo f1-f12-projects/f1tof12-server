@@ -126,11 +126,38 @@ def get_requirement_statuses(user_info: dict = Depends(require_lead_or_recruiter
     except Exception as e:
         handle_error(e, "get requirement statuses")
 
+@router.get("/company/{company_id}/open")
+def get_open_requirements_by_company(company_id: int, user_info: dict = Depends(require_lead_or_recruiter)):
+    try:
+        db = get_database()
+        user_role = user_info.get('role')
+        
+        if user_role == 'recruiter':
+            username = user_info.get('username')
+            if not username:
+                raise HTTPException(status_code=401, detail="Username not found in token")
+            requirements_data = db.requirement.get_open_requirements_by_company_and_recruiter(company_id, username)
+        else:
+            requirements_data = db.requirement.get_open_requirements_by_company(company_id)
+        
+        return success_response(requirements_data, "Open requirements retrieved successfully")
+    except Exception as e:
+        handle_error(e, "get open requirements by company")
+
 @router.get("/{requirement_id}/profilecounts")
 def get_profiles_by_requirement(requirement_id: int, response: Response, user_info: dict = Depends(require_lead_or_recruiter)):
     try:
         db = get_database()
-        profiles_data = db.process_profile.get_profiles_by_requirement(requirement_id)
+        user_role = user_info.get('role')
+        
+        if user_role == 'recruiter':
+            username = user_info.get('username')
+            if not username:
+                raise HTTPException(status_code=401, detail="Username not found in token")
+            profiles_data = db.process_profile.get_profiles_by_requirement_and_recruiter(requirement_id, username)
+        else:
+            profiles_data = db.process_profile.get_profiles_by_requirement(requirement_id)
+        
         return success_response(profiles_data, "Process profiles retrieved successfully")
     except Exception as e:
         handle_error(e, "get profiles by requirement")
@@ -236,7 +263,7 @@ def update_status_with_remarks(requirement_id: int, status_update: RequirementSt
         
         update_data: Dict[str, Any] = {"status_id": status_update.status_id}
         
-        if status_update.status_id in [9, 10]:
+        if status_update.status_id in [4, 5]:
             update_data["closed_date"] = datetime.now(ZoneInfo('Asia/Kolkata'))
         
         if status_update.remarks:

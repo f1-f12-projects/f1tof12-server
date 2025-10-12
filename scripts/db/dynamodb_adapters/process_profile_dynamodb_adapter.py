@@ -77,6 +77,19 @@ class ProcessProfileDynamoDBAdapter(BaseDynamoDBAdapter):
         except ClientError:
             return []
     
+    def get_profiles_by_requirement_and_recruiter(self, requirement_id: int, recruiter_name: str) -> list:
+        try:
+            response = self.process_profiles_table.scan(
+                FilterExpression='requirement_id = :req_id AND recruiter_name = :recruiter AND attribute_exists(profile_id)',
+                ExpressionAttributeValues={
+                    ':req_id': requirement_id,
+                    ':recruiter': recruiter_name
+                }
+            )
+            return response.get('Items', [])
+        except ClientError:
+            return []
+    
     def update_actively_working(self, requirement_id: int, profile_id: int, actively_working: str) -> bool:
         try:
             response = self.process_profiles_table.scan(
