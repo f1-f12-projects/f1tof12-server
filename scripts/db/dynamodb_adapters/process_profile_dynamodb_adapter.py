@@ -129,3 +129,77 @@ class ProcessProfileDynamoDBAdapter(BaseDynamoDBAdapter):
             return False
         except ClientError:
             return False
+    
+    def update_process_profile_recruiter(self, requirement_id: int, recruiter_name: str) -> bool:
+        try:
+            response = self.process_profiles_table.scan(
+                FilterExpression='requirement_id = :req_id',
+                ExpressionAttributeValues={':req_id': requirement_id}
+            )
+            
+            if response.get('Items'):
+                item = response['Items'][0]
+                self.process_profiles_table.put_item(
+                    Item={**item, 'recruiter_name': recruiter_name}
+                )
+                return True
+            return False
+        except ClientError:
+            return False
+    
+    def update_process_profile_status(self, requirement_id: int, profile_id: int, status: int) -> bool:
+        try:
+            response = self.process_profiles_table.scan(
+                FilterExpression='requirement_id = :req_id AND profile_id = :prof_id',
+                ExpressionAttributeValues={
+                    ':req_id': requirement_id,
+                    ':prof_id': profile_id
+                }
+            )
+            
+            if response.get('Items'):
+                item = response['Items'][0]
+                self.process_profiles_table.put_item(
+                    Item={**item, 'status': status}
+                )
+                return True
+            return False
+        except ClientError:
+            return False
+    
+    def update_process_profile_remarks(self, requirement_id: int, profile_id: int, remarks: str = None) -> bool:
+        try:
+            response = self.process_profiles_table.scan(
+                FilterExpression='requirement_id = :req_id AND profile_id = :prof_id',
+                ExpressionAttributeValues={
+                    ':req_id': requirement_id,
+                    ':prof_id': profile_id
+                }
+            )
+            
+            if response.get('Items'):
+                item = response['Items'][0]
+                self.process_profiles_table.put_item(
+                    Item={**item, 'remarks': remarks}
+                )
+                return True
+            return False
+        except ClientError:
+            return False
+    
+    def update_process_profile_profile(self, requirement_id: int, profile_id: int) -> bool:
+        try:
+            response = self.process_profiles_table.scan(
+                FilterExpression='requirement_id = :req_id',
+                ExpressionAttributeValues={':req_id': requirement_id}
+            )
+            
+            if response.get('Items'):
+                item = response['Items'][0]
+                self.process_profiles_table.put_item(
+                    Item={**item, 'profile_id': profile_id}
+                )
+                return True
+            return False
+        except ClientError:
+            return False
