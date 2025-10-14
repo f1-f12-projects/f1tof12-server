@@ -17,5 +17,10 @@ class CompanyAdapter(BaseAdapter):
             companies = db.query(Company).all()
             return [self._to_dict(company) for company in companies]
     
+    def list_active_companies(self) -> List[Dict[str, Any]]:
+        with self._db_session() as db:
+            companies = db.query(Company).filter(Company.status == "active").all()
+            return [self._to_dict(company) for company in companies]
+    
     def update_company(self, company_id: int, update_data: Dict[str, Any]) -> bool:
         return self._update_record(Company, company_id, update_data)

@@ -62,6 +62,18 @@ def list_companies(user_info: dict = Depends(require_recruiter)):
         logger.error("Exiting list_companies method - error")
         handle_error(e, "list companies")
 
+@router.get("/customer/list/active")
+def list_active_companies(user_info: dict = Depends(require_recruiter)):
+    logger.info("Entering list_active_companies method")
+    try:
+        db = get_database()
+        companies_data = db.company.list_active_companies()
+        logger.info("Exiting list_active_companies method - success")
+        return success_response(companies_data, "Active companies retrieved successfully")
+    except Exception as e:
+        logger.error("Exiting list_active_companies method - error")
+        handle_error(e, "list active companies")
+
 @router.put("/customer/{company_id}/update")
 def update_company(company_id: int, company_update: CompanyUpdate, user_info: dict = Depends(require_manager)):
     logger.info(f"Entering update_company method for company_id: {company_id}")

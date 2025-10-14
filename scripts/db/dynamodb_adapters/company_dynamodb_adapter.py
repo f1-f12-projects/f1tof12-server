@@ -43,6 +43,17 @@ class CompanyDynamoDBAdapter(BaseDynamoDBAdapter):
         except ClientError:
             return []
     
+    def list_active_companies(self) -> List[Dict[str, Any]]:
+        try:
+            response = self.companies_table.scan(
+                FilterExpression='#status = :status',
+                ExpressionAttributeNames={'#status': 'status'},
+                ExpressionAttributeValues={':status': 'active'}
+            )
+            return response.get('Items', [])
+        except ClientError:
+            return []
+    
     def update_company(self, company_id: int, update_data: Dict[str, Any]) -> bool:
         try:
             update_expression = "SET "
