@@ -48,8 +48,6 @@ class ProcessProfileCreate(BaseModel):
     status: int = 1
     remarks: Optional[str] = None
 
-
-
 @router.post("/add")
 def add_profile(profile: ProfileCreate, user_info: dict = Depends(require_recruiter)):
     try:
@@ -175,15 +173,6 @@ def update_remarks(profile_id: int, remarks_update: RemarksUpdate, user_info: di
         raise
     except Exception as e:
         handle_error(e, "update remarks")
-
-@router.get("/view-requirements")
-def view_requirements(user_info: dict = Depends(require_recruiter)):
-    try:
-        db = get_database()
-        requirements_data = db.requirement.list_requirements()
-        return success_response(requirements_data, "Requirements retrieved successfully")
-    except Exception as e:
-        handle_error(e, "view requirements")
 
 @router.post("/add-to-requirement")
 def add_profile_to_requirement(process_profile: ProcessProfileCreate, user_info: dict = Depends(require_recruiter)):

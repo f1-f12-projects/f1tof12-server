@@ -132,7 +132,7 @@ def get_open_requirements_by_company(company_id: int, user_info: dict = Depends(
         db = get_database()
         user_role = user_info.get('role')
         
-        if user_role == 'recruiter':
+        if user_role in ['recruiter', 'lead']:
             username = user_info.get('username')
             if not username:
                 raise HTTPException(status_code=401, detail="Username not found in token")
