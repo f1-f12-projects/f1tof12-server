@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, field_validator
 from scripts.db.database_factory import get_database
-from auth import require_manager
+from auth import require_manager, require_lead
 from scripts.utils.response import success_response, handle_error
 import logging
 
@@ -91,3 +91,12 @@ def update_spoc(spoc_id: int, spoc_update: SPOCUpdate, user_info: dict = Depends
         raise
     except Exception as e:
         handle_error(e, "update SPOC")
+
+@router.get("/spoc/company/{company_id}/list")
+def get_spocs_by_company(company_id: int, user_info: dict = Depends(require_lead)):
+    try:
+        db = get_database()
+        spocs_data = db.spoc.get_spocs_by_company(company_id)
+        return success_response(spocs_data, "SPOCs retrieved successfully")
+    except Exception as e:
+        handle_error(e, "get SPOCs by company")

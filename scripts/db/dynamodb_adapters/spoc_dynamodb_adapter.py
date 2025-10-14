@@ -53,3 +53,14 @@ class SPOCDynamoDBAdapter(BaseDynamoDBAdapter):
             return True
         except ClientError:
             return False
+    
+    def get_spocs_by_company(self, company_id: int) -> List[Dict[str, Any]]:
+        try:
+            response = self.spocs_table.scan(
+                FilterExpression='company_id = :company_id AND #status = :status',
+                ExpressionAttributeNames={'#status': 'status'},
+                ExpressionAttributeValues={':company_id': company_id, ':status': 'active'}
+            )
+            return response.get('Items', [])
+        except ClientError:
+            return []
