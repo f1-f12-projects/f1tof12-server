@@ -85,7 +85,8 @@ class ProcessProfileAdapter(BaseAdapter):
                 ProfileStatus, Profile.status == ProfileStatus.id
             ).filter(
                 ProcessProfile.requirement_id == requirement_id,
-                ProcessProfile.profile_id != None
+                ProcessProfile.profile_id != None,
+                ProcessProfile.actively_working == 'Yes'
             ).all()
             result = []
             for profile, stage in profiles:
@@ -111,7 +112,8 @@ class ProcessProfileAdapter(BaseAdapter):
             ).filter(
                 ProcessProfile.requirement_id == requirement_id,
                 ProcessProfile.recruiter_name == recruiter_name,
-                ProcessProfile.profile_id != None
+                ProcessProfile.profile_id != None,
+                ProcessProfile.actively_working == 'Yes'
             ).all()
             result = []
             for profile, stage in profiles:

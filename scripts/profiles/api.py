@@ -26,7 +26,7 @@ class ProfileCreate(BaseModel):
     current_ctc: Optional[float] = None
     expected_ctc: Optional[float] = None
     notice_period: Optional[str] = None
-    status: str = "New"
+    status: int = 1
     requirement_id: Optional[int] = None
 
 class ProfileUpdate(BaseModel):

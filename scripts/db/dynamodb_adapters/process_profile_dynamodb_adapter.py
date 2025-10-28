@@ -57,9 +57,10 @@ class ProcessProfileDynamoDBAdapter(BaseDynamoDBAdapter):
     def get_profiles_by_requirement(self, requirement_id: int) -> list:
         try:
             response = self.process_profiles_table.scan(
-                FilterExpression='requirement_id = :req_id AND attribute_exists(profile_id)',
+                FilterExpression='requirement_id = :req_id AND attribute_exists(profile_id) AND actively_working = :active',
                 ExpressionAttributeValues={
-                    ':req_id': requirement_id
+                    ':req_id': requirement_id,
+                    ':active': 'Yes'
                 }
             )
             items = response.get('Items', [])
@@ -83,10 +84,11 @@ class ProcessProfileDynamoDBAdapter(BaseDynamoDBAdapter):
     def get_profiles_by_requirement_and_recruiter(self, requirement_id: int, recruiter_name: str) -> list:
         try:
             response = self.process_profiles_table.scan(
-                FilterExpression='requirement_id = :req_id AND recruiter_name = :recruiter AND attribute_exists(profile_id)',
+                FilterExpression='requirement_id = :req_id AND recruiter_name = :recruiter AND attribute_exists(profile_id) AND actively_working = :active',
                 ExpressionAttributeValues={
                     ':req_id': requirement_id,
-                    ':recruiter': recruiter_name
+                    ':recruiter': recruiter_name,
+                    ':active': 'Yes'
                 }
             )
             items = response.get('Items', [])
