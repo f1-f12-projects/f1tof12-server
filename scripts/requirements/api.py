@@ -96,7 +96,6 @@ def add_requirement(requirement: RequirementCreate, user_info: dict = Depends(re
         process_profile_data = {
             "requirement_id": requirement_data['requirement_id'],
             "recruiter_name": "",
-            "status": 1,
             "profile_id": None,
             "remarks": ""
         }
@@ -145,7 +144,7 @@ def get_open_requirements_by_company(company_id: int, user_info: dict = Depends(
         handle_error(e, "get open requirements by company")
 
 @router.get("/{requirement_id}/profilecounts")
-def get_profiles_by_requirement(requirement_id: int, response: Response, user_info: dict = Depends(require_lead_or_recruiter)):
+def get_profile_counts_by_requirement(requirement_id: int, response: Response, user_info: dict = Depends(require_lead_or_recruiter)):
     try:
         db = get_database()
         user_role = user_info.get('role')
@@ -158,9 +157,36 @@ def get_profiles_by_requirement(requirement_id: int, response: Response, user_in
         else:
             profiles_data = db.process_profile.get_profiles_by_requirement(requirement_id)
         
-        return success_response(profiles_data, "Process profiles retrieved successfully")
+        # Count profiles by stage
+        stage_counts = {}
+        for profile in profiles_data:
+            stage = profile.get('stage', 'Unknown')
+            stage_counts[stage] = stage_counts.get(stage, 0) + 1
+        
+        return success_response(stage_counts, "Profile counts by stage retrieved successfully")
     except Exception as e:
         handle_error(e, "get profiles by requirement")
+
+@router.get("/{requirement_id}/profiles/{stage}")
+def get_profiles_by_stage(requirement_id: int, stage: str, user_info: dict = Depends(require_lead_or_recruiter)):
+    try:
+        db = get_database()
+        user_role = user_info.get('role')
+        
+        if user_role in ['recruiter', 'lead']:
+            username = user_info.get('username')
+            if not username:
+                raise HTTPException(status_code=401, detail="Username not found in token")
+            profiles_data = db.process_profile.get_profiles_by_requirement_and_recruiter(requirement_id, username)
+        else:
+            profiles_data = db.process_profile.get_profiles_by_requirement(requirement_id)
+        
+        # Filter profiles by stage
+        filtered_profiles = [profile for profile in profiles_data if profile.get('stage') == stage]
+        
+        return success_response(filtered_profiles, f"Profiles for stage '{stage}' retrieved successfully")
+    except Exception as e:
+        handle_error(e, "get profiles by stage")
 
 @router.get("/{requirement_id}")
 def get_requirement(requirement_id: int, user_info: dict = Depends(require_lead_or_recruiter)):
@@ -222,7 +248,6 @@ def assign_recruiter(requirement_id: int, recruiter_data: RequirementRecruiter, 
         db.process_profile.create_process_profile({
             "requirement_id": requirement_id,
             "recruiter_name": recruiter_data.recruiter_name,
-            "status": 1,
             "actively_working": "Yes"
         })
 

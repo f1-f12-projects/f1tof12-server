@@ -109,7 +109,6 @@ class ProcessProfile(Base):
     requirement_id = Column(Integer, ForeignKey("requirements.requirement_id"))
     recruiter_name = Column(String)
     profile_id = Column(Integer, ForeignKey("profiles.id"))
-    status = Column(Integer)
     remarks = Column(String)
     actively_working = Column(String, default="Yes")
     

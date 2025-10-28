@@ -4,10 +4,11 @@ from scripts.db.database_factory import get_database
 from auth import require_recruiter, require_lead_or_recruiter
 from scripts.utils.response import success_response, handle_error
 from scripts.utils.remarks import append_remarks
-from typing import Optional
+from typing import Optional, Dict, Any
 
 class StatusUpdate(BaseModel):
     status: int
+    remarks: Optional[str] = None
 
 class RemarksUpdate(BaseModel):
     remarks: str
@@ -45,7 +46,6 @@ class ProfileUpdate(BaseModel):
 class ProcessProfileCreate(BaseModel):
     requirement_id: int
     profile_id: int
-    status: int = 1
     remarks: Optional[str] = None
 
 @router.post("/add")
@@ -64,7 +64,6 @@ def add_profile(profile: ProfileCreate, user_info: dict = Depends(require_recrui
             process_profile_data = {
                 "requirement_id": requirement_id,
                 "recruiter_name": user_info.get('username', 'unknown'),
-                "status": 2,
                 "profile_id": profile_data['id'],
                 "remarks": ""
             }
@@ -136,14 +135,27 @@ def update_profile(profile_id: int, profile_update: ProfileUpdate, user_info: di
 @router.put("/{profile_id}/status")
 def update_status(profile_id: int, status_update: StatusUpdate, user_info: dict = Depends(require_recruiter)):
     try:
-        # Validate status value
         db = get_database()
+        
+        # Check if profile exists first
+        profile_data = db.profile.get_profile(profile_id)
+        if not profile_data:
+            raise HTTPException(status_code=404, detail="Profile not found")
+        
+        # Validate status value
         profile_statuses = db.profile.list_profile_statuses()
         valid_statuses = [status['id'] for status in profile_statuses]
         if status_update.status not in valid_statuses:
             raise HTTPException(status_code=400, detail=f"Invalid status passed.")
         
-        success = db.profile.update_profile(profile_id, {"status": status_update.status})
+        update_data: Dict[str, Any] = {"status": status_update.status}
+        
+        # Handle remarks if provided
+        if status_update.remarks:
+            existing_remarks = profile_data.get('remarks', '') or ''
+            update_data['remarks'] = append_remarks(existing_remarks, status_update.remarks, user_info.get('username', 'unknown'))
+        
+        success = db.profile.update_profile(profile_id, update_data)
         if not success:
             raise HTTPException(status_code=404, detail="Profile not found")
         
@@ -182,7 +194,6 @@ def add_profile_to_requirement(process_profile: ProcessProfileCreate, user_info:
             "requirement_id": process_profile.requirement_id,
             "profile_id": process_profile.profile_id,
             "recruiter_name": user_info.get('username'),
-            "status": process_profile.status,
             "remarks": process_profile.remarks
         }
         result = db.process_profile.create_process_profile(profile_data)

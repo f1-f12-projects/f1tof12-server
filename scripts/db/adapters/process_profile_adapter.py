@@ -1,6 +1,6 @@
 from typing import Optional, Dict, Any
 from .base_adapter import BaseAdapter
-from ..models import ProcessProfile
+from ..models import ProcessProfile, Profile, ProfileStatus
 
 class ProcessProfileAdapter(BaseAdapter):
     def create_process_profile(self, profile_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -40,14 +40,7 @@ class ProcessProfileAdapter(BaseAdapter):
             db.commit()
             return result > 0
     
-    def update_process_profile_status(self, requirement_id: int, profile_id: int, status: int) -> bool:
-        with self._db_session() as db:
-            result = db.query(ProcessProfile).filter(
-                ProcessProfile.requirement_id == requirement_id,
-                ProcessProfile.profile_id == profile_id
-            ).update({ProcessProfile.status: status})
-            db.commit()
-            return result > 0
+
     
     def update_process_profile_remarks(self, requirement_id: int, profile_id: int, remarks: Optional[str] = None) -> bool:
         with self._db_session() as db:
@@ -86,11 +79,20 @@ class ProcessProfileAdapter(BaseAdapter):
     
     def get_profiles_by_requirement(self, requirement_id: int) -> list:
         with self._db_session() as db:
-            profiles = db.query(ProcessProfile).filter(
+            profiles = db.query(Profile, ProfileStatus.stage).join(
+                ProcessProfile, Profile.id == ProcessProfile.profile_id
+            ).join(
+                ProfileStatus, Profile.status == ProfileStatus.id
+            ).filter(
                 ProcessProfile.requirement_id == requirement_id,
                 ProcessProfile.profile_id != None
             ).all()
-            return [self._to_dict(profile) for profile in profiles]
+            result = []
+            for profile, stage in profiles:
+                profile_dict = self._to_dict(profile)
+                profile_dict['stage'] = stage
+                result.append(profile_dict)
+            return result
     
     def get_active_profiles_by_requirement(self, requirement_id: int) -> list:
         with self._db_session() as db:
@@ -102,9 +104,18 @@ class ProcessProfileAdapter(BaseAdapter):
     
     def get_profiles_by_requirement_and_recruiter(self, requirement_id: int, recruiter_name: str) -> list:
         with self._db_session() as db:
-            profiles = db.query(ProcessProfile).filter(
+            profiles = db.query(Profile, ProfileStatus.stage).join(
+                ProcessProfile, Profile.id == ProcessProfile.profile_id
+            ).join(
+                ProfileStatus, Profile.status == ProfileStatus.id
+            ).filter(
                 ProcessProfile.requirement_id == requirement_id,
                 ProcessProfile.recruiter_name == recruiter_name,
                 ProcessProfile.profile_id != None
             ).all()
-            return [self._to_dict(profile) for profile in profiles]
+            result = []
+            for profile, stage in profiles:
+                profile_dict = self._to_dict(profile)
+                profile_dict['stage'] = stage
+                result.append(profile_dict)
+            return result

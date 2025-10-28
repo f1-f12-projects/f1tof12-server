@@ -1,12 +1,14 @@
 from typing import Dict, Any
 from botocore.exceptions import ClientError
-from scripts.db.config import PROCESS_PROFILES_TABLE
+from scripts.db.config import PROCESS_PROFILES_TABLE, PROFILES_TABLE, PROFILE_STATUSES_TABLE
 from .base_dynamodb_adapter import BaseDynamoDBAdapter
 
 class ProcessProfileDynamoDBAdapter(BaseDynamoDBAdapter):
     def __init__(self):
         super().__init__()
         self.process_profiles_table = self.dynamodb.Table(PROCESS_PROFILES_TABLE)
+        self.profiles_table = self.dynamodb.Table(PROFILES_TABLE)
+        self.profile_statuses_table = self.dynamodb.Table(PROFILE_STATUSES_TABLE)
     
     def create_process_profile(self, profile_data: Dict[str, Any]) -> Dict[str, Any]:
         try:
@@ -55,12 +57,13 @@ class ProcessProfileDynamoDBAdapter(BaseDynamoDBAdapter):
     def get_profiles_by_requirement(self, requirement_id: int) -> list:
         try:
             response = self.process_profiles_table.scan(
-                FilterExpression='requirement_id = :req_id',
+                FilterExpression='requirement_id = :req_id AND attribute_exists(profile_id)',
                 ExpressionAttributeValues={
                     ':req_id': requirement_id
                 }
             )
-            return response.get('Items', [])
+            items = response.get('Items', [])
+            return self._enrich_with_profile_stage(items)
         except ClientError:
             return []
     
@@ -86,7 +89,8 @@ class ProcessProfileDynamoDBAdapter(BaseDynamoDBAdapter):
                     ':recruiter': recruiter_name
                 }
             )
-            return response.get('Items', [])
+            items = response.get('Items', [])
+            return self._enrich_with_profile_stage(items)
         except ClientError:
             return []
     
@@ -147,25 +151,7 @@ class ProcessProfileDynamoDBAdapter(BaseDynamoDBAdapter):
         except ClientError:
             return False
     
-    def update_process_profile_status(self, requirement_id: int, profile_id: int, status: int) -> bool:
-        try:
-            response = self.process_profiles_table.scan(
-                FilterExpression='requirement_id = :req_id AND profile_id = :prof_id',
-                ExpressionAttributeValues={
-                    ':req_id': requirement_id,
-                    ':prof_id': profile_id
-                }
-            )
-            
-            if response.get('Items'):
-                item = response['Items'][0]
-                self.process_profiles_table.put_item(
-                    Item={**item, 'status': status}
-                )
-                return True
-            return False
-        except ClientError:
-            return False
+
     
     def update_process_profile_remarks(self, requirement_id: int, profile_id: int, remarks: str = None) -> bool:
         try:
@@ -203,3 +189,27 @@ class ProcessProfileDynamoDBAdapter(BaseDynamoDBAdapter):
             return False
         except ClientError:
             return False
+    
+    def _enrich_with_profile_stage(self, process_profiles: list) -> list:
+        """Get full profile data with stage information"""
+        try:
+            # Get all profile statuses
+            status_response = self.profile_statuses_table.scan()
+            status_map = {item['id']: item['stage'] for item in status_response.get('Items', [])}
+            
+            enriched_profiles = []
+            for process_profile in process_profiles:
+                if process_profile.get('profile_id'):
+                    # Get full profile data
+                    profile_response = self.profiles_table.get_item(
+                        Key={'id': process_profile['profile_id']}
+                    )
+                    if 'Item' in profile_response:
+                        profile = profile_response['Item']
+                        profile_status = profile.get('status', 1)
+                        stage = status_map.get(profile_status, 'Unknown')
+                        profile['stage'] = stage
+                        enriched_profiles.append(profile)
+            return enriched_profiles
+        except ClientError:
+            return []
