@@ -1,13 +1,13 @@
 from typing import Optional, Dict, Any
 from datetime import datetime, timezone
 from botocore.exceptions import ClientError
-from scripts.db.config import USERS_TABLE
 from .base_dynamodb_adapter import BaseDynamoDBAdapter
 
 class UserDynamoDBAdapter(BaseDynamoDBAdapter):
     def __init__(self):
         super().__init__()
-        self.users_table = self.dynamodb.Table(USERS_TABLE)
+        # Users table not used in this application
+        self.users_table = None
     
     def create_user(self, username: str, hashed_password: str) -> Dict[str, Any]:
         user_data = {

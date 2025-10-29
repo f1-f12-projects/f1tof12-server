@@ -1,16 +1,18 @@
 import boto3
+import sys
+import os
 from botocore.exceptions import ClientError
-from scripts.db.config import AWS_REGION, USERS_TABLE, COMPANIES_TABLE, SPOCS_TABLE, INVOICES_TABLE, REQUIREMENTS_TABLE, REQUIREMENT_STATUSES_TABLE, PROFILE_STATUSES_TABLE, COUNTERS_TABLE, PROFILES_TABLE
+
+# Add project root to path
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(project_root)
+
+from scripts.db.config import AWS_REGION, COMPANIES_TABLE, SPOCS_TABLE, INVOICES_TABLE, REQUIREMENTS_TABLE, REQUIREMENT_STATUSES_TABLE, PROFILE_STATUSES_TABLE, COUNTERS_TABLE, PROFILES_TABLE, PROCESS_PROFILES_TABLE
 
 def create_dynamodb_tables():
     dynamodb = boto3.resource('dynamodb', region_name=AWS_REGION)
     
     tables = [
-        {
-            'name': USERS_TABLE,
-            'key': 'username',
-            'type': 'S'
-        },
         {
             'name': COMPANIES_TABLE,
             'key': 'id',
@@ -33,7 +35,7 @@ def create_dynamodb_tables():
         },
         {
             'name': PROFILES_TABLE,
-            'key': 'profile_id',
+            'key': 'id',
             'type': 'N'
         },
         {
@@ -43,6 +45,11 @@ def create_dynamodb_tables():
         },
         {
             'name': PROFILE_STATUSES_TABLE,
+            'key': 'id',
+            'type': 'N'
+        },
+        {
+            'name': PROCESS_PROFILES_TABLE,
             'key': 'id',
             'type': 'N'
         },

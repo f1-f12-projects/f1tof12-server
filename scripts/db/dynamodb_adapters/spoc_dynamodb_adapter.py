@@ -35,18 +35,23 @@ class SPOCDynamoDBAdapter(BaseDynamoDBAdapter):
     
     def update_spoc(self, spoc_id: int, update_data: Dict[str, Any]) -> bool:
         try:
+            from decimal import Decimal
             update_expression = "SET "
             expression_values = {}
             
             for key, value in update_data.items():
+                # Convert float to Decimal for DynamoDB compatibility
+                if isinstance(value, float):
+                    value = Decimal(str(value))
                 update_expression += f"{key} = :{key}, "
                 expression_values[f":{key}"] = value
             
             update_expression += "updated_date = :updated_date"
             expression_values[":updated_date"] = datetime.now(timezone.utc).isoformat()
             
+            from decimal import Decimal
             self.spocs_table.update_item(
-                Key={'id': spoc_id},
+                Key={'id': Decimal(str(spoc_id))},
                 UpdateExpression=update_expression,
                 ExpressionAttributeValues=expression_values
             )

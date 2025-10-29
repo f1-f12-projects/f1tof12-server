@@ -56,21 +56,42 @@ class CompanyDynamoDBAdapter(BaseDynamoDBAdapter):
     
     def update_company(self, company_id: int, update_data: Dict[str, Any]) -> bool:
         try:
+            from decimal import Decimal
             update_expression = "SET "
             expression_values = {}
+            expression_names = {}
+            
+            # DynamoDB reserved keywords that need ExpressionAttributeNames
+            reserved_keywords = {'location', 'status', 'role', 'name', 'date', 'time'}
             
             for key, value in update_data.items():
-                update_expression += f"{key} = :{key}, "
+                # Convert float to Decimal for DynamoDB compatibility
+                if isinstance(value, float):
+                    value = Decimal(str(value))
+                
+                # Handle reserved keywords
+                if key.lower() in reserved_keywords:
+                    attr_name = f"#{key}"
+                    expression_names[attr_name] = key
+                    update_expression += f"{attr_name} = :{key}, "
+                else:
+                    update_expression += f"{key} = :{key}, "
+                
                 expression_values[f":{key}"] = value
             
             update_expression += "updated_date = :updated_date"
             expression_values[":updated_date"] = datetime.now(timezone.utc).isoformat()
             
-            self.companies_table.update_item(
-                Key={'id': company_id},
-                UpdateExpression=update_expression,
-                ExpressionAttributeValues=expression_values
-            )
+            update_params = {
+                'Key': {'id': Decimal(str(company_id))},
+                'UpdateExpression': update_expression,
+                'ExpressionAttributeValues': expression_values
+            }
+            
+            if expression_names:
+                update_params['ExpressionAttributeNames'] = expression_names
+            
+            self.companies_table.update_item(**update_params)
             return True
         except ClientError:
             return False

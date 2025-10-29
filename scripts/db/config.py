@@ -7,13 +7,17 @@ DATABASE_URL = f"sqlite:///{DB_FILE_NAME}"
 # DynamoDB Configuration
 USE_DYNAMODB = os.getenv('USE_DYNAMODB', 'false').lower() == 'true'
 AWS_REGION = os.getenv('AWS_REGION', 'ap-south-1')
-USERS_TABLE = os.getenv('USERS_TABLE', 'f1tof12-users')
-COMPANIES_TABLE = os.getenv('COMPANIES_TABLE', 'f1tof12-companies')
-SPOCS_TABLE = os.getenv('SPOCS_TABLE', 'f1tof12-spocs')
-INVOICES_TABLE = os.getenv('INVOICES_TABLE', 'f1tof12-invoices')
-REQUIREMENTS_TABLE = os.getenv('REQUIREMENTS_TABLE', 'f1tof12-requirements')
-REQUIREMENT_STATUSES_TABLE = os.getenv('REQUIREMENT_STATUSES_TABLE', 'f1tof12-requirement-statuses')
-PROFILE_STATUSES_TABLE = os.getenv('PROFILE_STATUSES_TABLE', 'f1tof12-profile-statuses')
-COUNTERS_TABLE = os.getenv('COUNTERS_TABLE', 'f1tof12-counters')
-PROFILES_TABLE = os.getenv('PROFILES_TABLE', 'f1tof12-profiles')
-PROCESS_PROFILES_TABLE = os.getenv('PROCESS_PROFILES_TABLE', 'f1tof12-process-profiles')
+
+# Environment-based table naming
+ENVIRONMENT = os.getenv('ENVIRONMENT', 'dev')
+TABLE_SUFFIX = '-dev' if ENVIRONMENT == 'dev' else ''
+
+COMPANIES_TABLE = os.getenv('COMPANIES_TABLE', f'f1tof12-companies{TABLE_SUFFIX}')
+SPOCS_TABLE = os.getenv('SPOCS_TABLE', f'f1tof12-spocs{TABLE_SUFFIX}')
+INVOICES_TABLE = os.getenv('INVOICES_TABLE', f'f1tof12-invoices{TABLE_SUFFIX}')
+REQUIREMENTS_TABLE = os.getenv('REQUIREMENTS_TABLE', f'f1tof12-requirements{TABLE_SUFFIX}')
+REQUIREMENT_STATUSES_TABLE = os.getenv('REQUIREMENT_STATUSES_TABLE', f'f1tof12-requirement-statuses{TABLE_SUFFIX}')
+PROFILE_STATUSES_TABLE = os.getenv('PROFILE_STATUSES_TABLE', f'f1tof12-profile-statuses{TABLE_SUFFIX}')
+COUNTERS_TABLE = os.getenv('COUNTERS_TABLE', f'f1tof12-counters{TABLE_SUFFIX}')
+PROFILES_TABLE = os.getenv('PROFILES_TABLE', f'f1tof12-profiles{TABLE_SUFFIX}')
+PROCESS_PROFILES_TABLE = os.getenv('PROCESS_PROFILES_TABLE', f'f1tof12-process-profiles{TABLE_SUFFIX}')

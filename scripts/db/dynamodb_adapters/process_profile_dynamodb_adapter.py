@@ -24,12 +24,26 @@ class ProcessProfileDynamoDBAdapter(BaseDynamoDBAdapter):
         except ClientError:
             pass
         
+        from decimal import Decimal
         profile_id = self._get_next_id('process_profiles')
         profile_data['id'] = profile_id
+        
+        # Convert float values to Decimal for DynamoDB compatibility
+        for key, value in profile_data.items():
+            if isinstance(value, float):
+                profile_data[key] = Decimal(str(value))
+        
         self.process_profiles_table.put_item(Item=profile_data)
         return profile_data
     
     def upsert_process_profile(self, profile_data: Dict[str, Any]) -> Dict[str, Any]:
+        from decimal import Decimal
+        
+        # Convert float values to Decimal for DynamoDB compatibility
+        for key, value in profile_data.items():
+            if isinstance(value, float):
+                profile_data[key] = Decimal(str(value))
+        
         try:
             response = self.process_profiles_table.scan(
                 FilterExpression='requirement_id = :req_id AND profile_id = :prof_id',
@@ -41,8 +55,9 @@ class ProcessProfileDynamoDBAdapter(BaseDynamoDBAdapter):
             
             if response.get('Items'):
                 existing = response['Items'][0]
-                self.process_profiles_table.put_item(Item={**existing, **profile_data})
-                return {**existing, **profile_data}
+                merged_data = {**existing, **profile_data}
+                self.process_profiles_table.put_item(Item=merged_data)
+                return merged_data
             else:
                 profile_id = self._get_next_id('process_profiles')
                 profile_data['id'] = profile_id
