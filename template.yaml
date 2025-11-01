@@ -8,9 +8,9 @@ Globals:
     Timeout: 30
     Runtime: python3.12
   HttpApi:
-    ThrottleConfig:
-      RateLimit: 1000
-      BurstLimit: 2000
+    DefaultRouteSettings:
+      ThrottlingRateLimit: 1000
+      ThrottlingBurstLimit: 2000
     CorsConfiguration:
       AllowOrigins:
         - "http://localhost:3000"
