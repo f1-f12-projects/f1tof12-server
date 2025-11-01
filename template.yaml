@@ -8,6 +8,9 @@ Globals:
     Timeout: 30
     Runtime: python3.12
   HttpApi:
+    ThrottleConfig:
+      RateLimit: 1000
+      BurstLimit: 2000
     CorsConfiguration:
       AllowOrigins:
         - "http://localhost:3000"
@@ -160,6 +163,22 @@ Resources:
         - AttributeName: table_name
           KeyType: HASH
       BillingMode: PAY_PER_REQUEST
+
+  ThrottleAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: F1toF12-API-Throttling
+      AlarmDescription: Alert when API Gateway throttling occurs
+      MetricName: 4XXError
+      Namespace: AWS/ApiGatewayV2
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 10
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: ApiId
+          Value: !Ref ServerlessHttpApi
 
 Outputs:
   ApiUrl:
