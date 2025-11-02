@@ -12,6 +12,21 @@ class ProcessProfileDynamoDBAdapter(BaseDynamoDBAdapter):
     
     def create_process_profile(self, profile_data: Dict[str, Any]) -> Dict[str, Any]:
         try:
+            # Check if unassigned requirement exists (recruiter_name is empty)
+            response = self.process_profiles_table.scan(
+                FilterExpression='requirement_id = :req_id AND recruiter_name = :empty',
+                ExpressionAttributeValues={
+                    ':req_id': profile_data['requirement_id'],
+                    ':empty': ''
+                }
+            )
+            if response.get('Items'):
+                existing = response['Items'][0]
+                merged_data = {**existing, **profile_data, 'actively_working': 'Yes'}
+                self.process_profiles_table.put_item(Item=merged_data)
+                return merged_data
+            
+            # Check by recruiter_name for other cases
             response = self.process_profiles_table.scan(
                 FilterExpression='requirement_id = :req_id AND recruiter_name = :recruiter',
                 ExpressionAttributeValues={
@@ -45,12 +60,17 @@ class ProcessProfileDynamoDBAdapter(BaseDynamoDBAdapter):
                 profile_data[key] = Decimal(str(value))
         
         try:
+            profile_id = profile_data.get('profile_id')
+            if profile_id is None or profile_id == 0:
+                filter_expr = 'requirement_id = :req_id AND profile_id = :zero'
+                expr_values = {':req_id': profile_data['requirement_id'], ':zero': 0}
+            else:
+                filter_expr = 'requirement_id = :req_id AND profile_id = :prof_id'
+                expr_values = {':req_id': profile_data['requirement_id'], ':prof_id': profile_id}
+            
             response = self.process_profiles_table.scan(
-                FilterExpression='requirement_id = :req_id AND profile_id = :prof_id',
-                ExpressionAttributeValues={
-                    ':req_id': profile_data['requirement_id'],
-                    ':prof_id': profile_data['profile_id']
-                }
+                FilterExpression=filter_expr,
+                ExpressionAttributeValues=expr_values
             )
             
             if response.get('Items'):
@@ -72,14 +92,15 @@ class ProcessProfileDynamoDBAdapter(BaseDynamoDBAdapter):
     def get_profiles_by_requirement(self, requirement_id: int) -> list:
         try:
             response = self.process_profiles_table.scan(
-                FilterExpression='requirement_id = :req_id AND attribute_exists(profile_id) AND actively_working = :active',
+                FilterExpression='requirement_id = :req_id AND attribute_exists(profile_id)',
                 ExpressionAttributeValues={
-                    ':req_id': requirement_id,
-                    ':active': 'Yes'
+                    ':req_id': requirement_id
                 }
             )
             items = response.get('Items', [])
-            return self._enrich_with_profile_stage(items)
+            # Filter for actively working profiles, defaulting to 'Yes' if not specified
+            active_items = [item for item in items if item.get('actively_working', 'Yes') == 'Yes']
+            return self._enrich_with_profile_stage(active_items)
         except ClientError:
             return []
     
@@ -99,15 +120,16 @@ class ProcessProfileDynamoDBAdapter(BaseDynamoDBAdapter):
     def get_profiles_by_requirement_and_recruiter(self, requirement_id: int, recruiter_name: str) -> list:
         try:
             response = self.process_profiles_table.scan(
-                FilterExpression='requirement_id = :req_id AND recruiter_name = :recruiter AND attribute_exists(profile_id) AND actively_working = :active',
+                FilterExpression='requirement_id = :req_id AND recruiter_name = :recruiter AND attribute_exists(profile_id)',
                 ExpressionAttributeValues={
                     ':req_id': requirement_id,
-                    ':recruiter': recruiter_name,
-                    ':active': 'Yes'
+                    ':recruiter': recruiter_name
                 }
             )
             items = response.get('Items', [])
-            return self._enrich_with_profile_stage(items)
+            # Filter for actively working profiles, defaulting to 'Yes' if not specified
+            active_items = [item for item in items if item.get('actively_working', 'Yes') == 'Yes']
+            return self._enrich_with_profile_stage(active_items)
         except ClientError:
             return []
     

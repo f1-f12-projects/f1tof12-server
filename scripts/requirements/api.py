@@ -96,7 +96,8 @@ def add_requirement(requirement: RequirementCreate, user_info: dict = Depends(re
         process_profile_data = {
             "requirement_id": requirement_data['requirement_id'],
             "recruiter_name": "",
-            "profile_id": None,
+            "profile_id": 0,
+            "actively_working": "No",
             "remarks": ""
         }
         db.process_profile.create_process_profile(process_profile_data)
@@ -235,14 +236,14 @@ def assign_recruiter(requirement_id: int, recruiter_data: RequirementRecruiter, 
                 UserPoolId=USER_POOL_ID,
                 Username=recruiter_data.recruiter_name
             )
-        except:
+        except Exception:
             raise HTTPException(status_code=400, detail={
                 "error": "RECRUITER_NOT_FOUND",
                 "message": "Recruiter not found in the system",
                 "code": "RCTR_404"
             })
         
-        update_requirement_or_404(requirement_id, {"recruiter_name": recruiter_data.recruiter_name})
+        update_requirement_or_404(requirement_id, {"recruiter_name": recruiter_data.recruiter_name, "status_id": 2})
         # Add new record in process_profiles table with recruiter_name and requirement_id
         db = get_database()
         db.process_profile.create_process_profile({

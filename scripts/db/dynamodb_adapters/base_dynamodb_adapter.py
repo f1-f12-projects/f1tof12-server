@@ -1,13 +1,14 @@
 import time
 from botocore.exceptions import ClientError
 from scripts.db.lambda_dynamodb_pool import pool
+from scripts.db.config import COUNTERS_TABLE
 
 class BaseDynamoDBAdapter:
     def __init__(self):
         self.dynamodb = pool.get_resource()
     
     def _get_next_id(self, table_type: str) -> int:
-        counter_table = self.dynamodb.Table('f1tof12-counters')
+        counter_table = self.dynamodb.Table(COUNTERS_TABLE)
         max_retries = 3
         
         for attempt in range(max_retries):

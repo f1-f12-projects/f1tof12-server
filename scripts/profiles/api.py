@@ -65,7 +65,8 @@ def add_profile(profile: ProfileCreate, user_info: dict = Depends(require_recrui
                 "requirement_id": requirement_id,
                 "recruiter_name": user_info.get('username', 'unknown'),
                 "profile_id": profile_data['id'],
-                "remarks": ""
+                "remarks": "",
+                "actively_working": "Yes"
             }
             db.process_profile.upsert_process_profile(process_profile_data)
         return success_response(profile_data, "Profile added successfully")
