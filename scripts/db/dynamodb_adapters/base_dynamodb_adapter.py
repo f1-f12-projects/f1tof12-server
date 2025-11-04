@@ -29,3 +29,30 @@ class BaseDynamoDBAdapter:
                         time.sleep(2 ** attempt)  # Exponential backoff
                         continue
                 raise
+    
+    def _batch_scan_by_ids(self, table, ids, id_field, batch_size=100):
+        """Scan table in batches filtering by list of IDs"""
+        from decimal import Decimal
+        results = {}
+        
+        if not ids:
+            return results
+            
+        for i in range(0, len(ids), batch_size):
+            batch_ids = ids[i:i + batch_size]
+            
+            filter_expr = ' OR '.join([f'{id_field} = :id{j}' for j in range(len(batch_ids))])
+            expr_values = {f':id{j}': Decimal(str(id_val)) for j, id_val in enumerate(batch_ids)}
+            
+            response = table.scan(
+                FilterExpression=filter_expr,
+                ExpressionAttributeValues=expr_values
+            )
+            
+            for item in response.get('Items', []):
+                item_id = item.get(id_field)
+                if isinstance(item_id, Decimal):
+                    item_id = int(item_id)
+                results[item_id] = item
+                
+        return results

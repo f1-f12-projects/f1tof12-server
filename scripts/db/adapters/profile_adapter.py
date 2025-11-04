@@ -23,3 +23,33 @@ class ProfileAdapter(BaseAdapter):
         with self._db_session() as db:
             statuses = db.query(ProfileStatus).all()
             return [self._to_dict(status) for status in statuses]
+    
+    def get_profiles_by_date_range(self, start_date, end_date, recruiter_name=None) -> List[Dict[str, Any]]:
+        from scripts.db.models import ProcessProfile
+        with self._db_session() as db:
+            query = db.query(
+                Profile.id.label('profile_id'),
+                Profile.status,
+                Profile.name,
+                ProcessProfile.recruiter_name,
+                ProcessProfile.requirement_id
+            ).outerjoin(
+                ProcessProfile, Profile.id == ProcessProfile.profile_id
+            ).filter(
+                Profile.created_date >= start_date,
+                Profile.created_date <= end_date
+            )
+            
+            # Filter by recruiter if provided
+            if recruiter_name:
+                query = query.filter(ProcessProfile.recruiter_name == recruiter_name)
+            
+            profiles = query.all()
+            
+            return [{
+                'profile_id': profile.profile_id,
+                'status': profile.status,
+                'name': profile.name,
+                'recruiter_name': profile.recruiter_name,
+                'requirement_id': profile.requirement_id
+            } for profile in profiles]

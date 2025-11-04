@@ -1,14 +1,18 @@
-from fastapi import APIRouter, Depends, HTTPException
+import logging
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from scripts.db.database_factory import get_database
-from auth import require_recruiter, require_lead_or_recruiter
+from auth import require_recruiter
 from scripts.utils.response import success_response, handle_error
 from scripts.utils.remarks import append_remarks
 from typing import Optional, Dict, Any
+from datetime import date
 
 class StatusUpdate(BaseModel):
     status: int
     remarks: Optional[str] = None
+    accepted_offer: Optional[float] = None
+    joining_date: Optional[date] = None
 
 class RemarksUpdate(BaseModel):
     remarks: str
@@ -42,11 +46,17 @@ class ProfileUpdate(BaseModel):
     notice_period: Optional[str] = None
     status: Optional[int] = None
     remarks: Optional[str] = None
+    accepted_offer: Optional[float] = None
+    joining_date: Optional[date] = None
 
 class ProcessProfileCreate(BaseModel):
     requirement_id: int
     profile_id: int
     remarks: Optional[str] = None
+
+class DateRangeQuery(BaseModel):
+    start_date: date
+    end_date: date
 
 @router.post("/add")
 def add_profile(profile: ProfileCreate, user_info: dict = Depends(require_recruiter)):
@@ -72,6 +82,27 @@ def add_profile(profile: ProfileCreate, user_info: dict = Depends(require_recrui
         return success_response(profile_data, "Profile added successfully")
     except Exception as e:
         handle_error(e, "add profile")
+
+@router.get("/by-date-range")
+def get_profiles_by_date_range(start_date: date, end_date: date, user_info: dict = Depends(require_recruiter)):
+    logging.info(f"ENTRY: get_profiles_by_date_range - start_date={start_date}, end_date={end_date}, user={user_info.get('username')}, role={user_info.get('role')}")
+    try:
+        db = get_database()
+        user_role = user_info.get('role')
+        
+        # If user is lead or manager, show all profiles (no recruiter filter)
+        # If user is recruiter, show only their profiles
+        recruiter_name = None if user_role in ['lead', 'manager'] else user_info.get('username')
+        
+        profiles_data = db.profile.get_profiles_by_date_range(start_date, end_date, recruiter_name)
+        result = success_response(profiles_data, "Profiles retrieved successfully")
+        logging.info(f"EXIT: get_profiles_by_date_range - result count={len(profiles_data)}")
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"ERROR: get_profiles_by_date_range - {e}")
+        handle_error(e, "get profiles by date range")
 
 @router.get("/list")
 def list_profiles(user_info: dict = Depends(require_recruiter)):
@@ -107,7 +138,9 @@ def get_profile(profile_id: int, user_info: dict = Depends(require_recruiter)):
 @router.put("/{profile_id}/update")
 def update_profile(profile_id: int, profile_update: ProfileUpdate, user_info: dict = Depends(require_recruiter)):
     try:
-        update_data = {k: v for k, v in profile_update.dict().items() if v is not None}
+        logging.info(f"Updating profile id: {profile_id} with data: {profile_update.dict()}")
+        update_data = profile_update.dict(exclude_none=True)
+        logging.info(f"Filtered update_data: {update_data}")
         
         if not update_data:
             raise HTTPException(status_code=400, detail="No valid fields to update")
@@ -149,7 +182,25 @@ def update_status(profile_id: int, status_update: StatusUpdate, user_info: dict 
         if status_update.status not in valid_statuses:
             raise HTTPException(status_code=400, detail=f"Invalid status passed.")
         
+        # Check if any optional fields are provided
+        has_optional_fields = (
+            status_update.accepted_offer is not None or 
+            status_update.joining_date is not None or 
+            status_update.remarks is not None
+        )
+        
+        if not has_optional_fields:
+            raise HTTPException(status_code=400, detail="No valid fields to update")
+        
         update_data: Dict[str, Any] = {"status": status_update.status}
+        
+        # Handle accepted_offer if provided
+        if status_update.accepted_offer is not None:
+            update_data['accepted_offer'] = status_update.accepted_offer
+        
+        # Handle joining_date if provided
+        if status_update.joining_date is not None:
+            update_data['joining_date'] = status_update.joining_date
         
         # Handle remarks if provided
         if status_update.remarks:
@@ -201,4 +252,6 @@ def add_profile_to_requirement(process_profile: ProcessProfileCreate, user_info:
         return success_response(result, "Profile added to requirement successfully")
     except Exception as e:
         handle_error(e, "add profile to requirement")
+
+
 

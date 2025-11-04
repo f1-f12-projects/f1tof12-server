@@ -85,6 +85,8 @@ class Profile(Base):
     notice_period = Column(String)
     status = Column(Integer, default=1)
     remarks = Column(String)
+    accepted_offer = Column(Float)
+    joining_date = Column(Date)
     created_date = Column(DateTime, default=lambda: datetime.now(ZoneInfo('Asia/Kolkata')))
     updated_date = Column(DateTime, default=lambda: datetime.now(ZoneInfo('Asia/Kolkata')), onupdate=lambda: datetime.now(ZoneInfo('Asia/Kolkata')))
 
