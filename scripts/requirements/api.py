@@ -263,7 +263,7 @@ def get_requirement_recruiters(requirement_id: int, user_info: dict = Depends(re
     try:
         db = get_database()
         profiles = db.process_profile.get_active_profiles_by_requirement(requirement_id)
-        recruiters = [p.get('recruiter_name') for p in profiles if p.get('recruiter_name', '').strip()]
+        recruiters = list(set(p.get('recruiter_name') for p in profiles if p.get('recruiter_name', '').strip()))
         return success_response(recruiters, "Recruiters retrieved successfully")
     except Exception as e:
         handle_error(e, "get requirement recruiters")

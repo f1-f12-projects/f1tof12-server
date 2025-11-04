@@ -190,8 +190,6 @@ class ProcessProfileDynamoDBAdapter(BaseDynamoDBAdapter):
         except ClientError:
             return False
     
-
-    
     def update_process_profile_remarks(self, requirement_id: int, profile_id: int, remarks: str = None) -> bool:
         try:
             response = self.process_profiles_table.scan(
