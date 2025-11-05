@@ -9,6 +9,9 @@ from datetime import date, datetime
 from zoneinfo import ZoneInfo
 import boto3
 from scripts.constants import AWS_REGION
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/requirements", tags=["requirements"])
 
@@ -59,6 +62,7 @@ def get_requirement_or_404(requirement_id: int):
     db = get_database()
     current_req = db.requirement.get_requirement(requirement_id)
     if not current_req:
+        logger.error(f"Requirement not found: {requirement_id}")
         raise HTTPException(status_code=404, detail={"error": "REQUIREMENT_NOT_FOUND", "message": "Requirement not found", "code": "REQ_404"})
     return current_req
 
@@ -71,6 +75,7 @@ def update_requirement_or_404(requirement_id: int, update_data: dict) -> None:
     db = get_database()
     success = db.requirement.update_requirement(requirement_id, update_data)
     if not success:
+        logger.error(f"Failed to update requirement: {requirement_id}")
         raise HTTPException(status_code=404, detail={"error": "REQUIREMENT_NOT_FOUND", "message": "Requirement not found", "code": "REQ_404"})
 
 @router.post("/add")
@@ -104,6 +109,7 @@ def add_requirement(requirement: RequirementCreate, user_info: dict = Depends(re
 
         return success_response(requirement_data, "Requirement added successfully")
     except HTTPException:
+        logger.error("HTTPException in add requirement")
         raise
     except Exception as e:
         handle_error(e, "add requirement")
@@ -135,6 +141,7 @@ def get_open_requirements_by_company(company_id: int, user_info: dict = Depends(
         if user_role in ['recruiter', 'lead']:
             username = user_info.get('username')
             if not username:
+                logger.error("Username not found in token for get open requirements by company")
                 raise HTTPException(status_code=401, detail="Username not found in token")
             requirements_data = db.requirement.get_open_requirements_by_company_and_recruiter(company_id, username)
         else:
@@ -153,6 +160,7 @@ def get_profile_counts_by_requirement(requirement_id: int, response: Response, u
         if user_role in ['recruiter', 'lead']:
             username = user_info.get('username')
             if not username:
+                logger.error("Username not found in token for get profile counts by requirement")
                 raise HTTPException(status_code=401, detail="Username not found in token")
             profiles_data = db.process_profile.get_profiles_by_requirement_and_recruiter(requirement_id, username)
         else:
@@ -195,6 +203,7 @@ def get_requirement(requirement_id: int, user_info: dict = Depends(require_lead_
         requirement = get_requirement_or_404(requirement_id)
         return success_response(requirement, "Requirement retrieved successfully")
     except HTTPException:
+        logger.error("HTTPException in get requirement")
         raise
     except Exception as e:
         handle_error(e, "get requirement")
@@ -210,6 +219,7 @@ def update_requirement(requirement_id: int, requirement_update: RequirementUpdat
         update_requirement_or_404(requirement_id, update_data)
         return success_response(message="Requirement updated successfully")
     except HTTPException:
+        logger.error("HTTPException in update requirement")
         raise
     except Exception as e:
         handle_error(e, "update requirement")
@@ -220,6 +230,7 @@ def set_requirement_spoc(requirement_id: int, spoc_data: RequirementSPOC, user_i
         update_requirement_or_404(requirement_id, {"spoc_id": spoc_data.spoc_id})
         return success_response(message="SPOC assigned to requirement successfully")
     except HTTPException:
+        logger.error("HTTPException in set requirement SPOC")
         raise
     except Exception as e:
         handle_error(e, "set requirement SPOC")
@@ -232,16 +243,18 @@ def assign_recruiter(requirement_id: int, recruiter_data: RequirementRecruiter, 
         cognito_client = boto3.client('cognito-idp', region_name=AWS_REGION)  # type: ignore
         
         try:
-            cognito_client.admin_get_user(
+            response = cognito_client.list_users(
                 UserPoolId=USER_POOL_ID,
-                Username=recruiter_data.recruiter_name
+                Filter=f'username = "{recruiter_data.recruiter_name}"',
+                Limit=1
             )
-        except Exception:
-            raise HTTPException(status_code=400, detail={
-                "error": "RECRUITER_NOT_FOUND",
-                "message": "Recruiter not found in the system",
-                "code": "RCTR_404"
-            })
+            if not response.get('Users'):
+                handle_error(Exception("RECRUITER_NOT_FOUND"), "assign recruiter - recruiter validation")
+        except HTTPException:
+            logger.error("HTTPException in assign recruiter")
+            raise
+        except Exception as e:
+            handle_error(Exception("RECRUITER_NOT_FOUND"), "assign recruiter - cognito check")
         
         update_requirement_or_404(requirement_id, {"recruiter_name": recruiter_data.recruiter_name, "status_id": 2})
         # Add new record in process_profiles table with recruiter_name and requirement_id
@@ -254,6 +267,7 @@ def assign_recruiter(requirement_id: int, recruiter_data: RequirementRecruiter, 
 
         return success_response(message="Recruiter assigned to requirement successfully")
     except HTTPException:
+        logger.error("HTTPException in assign recruiter")
         raise
     except Exception as e:
         handle_error(e, "assign recruiter")
@@ -278,6 +292,7 @@ def update_remarks(requirement_id: int, remarks_update: RequirementRemarksUpdate
         update_requirement_or_404(requirement_id, {"remarks": new_remarks})
         return success_response(message="Remarks updated successfully")
     except HTTPException:
+        logger.error("HTTPException in update remarks")
         raise
     except Exception as e:
         handle_error(e, "update remarks")
@@ -300,6 +315,7 @@ def update_status_with_remarks(requirement_id: int, status_update: RequirementSt
         update_requirement_or_404(requirement_id, update_data)
         return success_response(message="Status and remarks updated successfully")
     except HTTPException:
+        logger.error("HTTPException in update status with remarks")
         raise
     except Exception as e:
         handle_error(e, "update status with remarks")
@@ -318,6 +334,7 @@ def update_actively_working(requirement_id: int, recruiter_name: str, update_dat
         
         return success_response(message=f"Actively working status updated to {update_data.actively_working}")
     except HTTPException:
+        logger.error("HTTPException in update actively working status")
         raise
     except Exception as e:
         handle_error(e, "update actively working status")

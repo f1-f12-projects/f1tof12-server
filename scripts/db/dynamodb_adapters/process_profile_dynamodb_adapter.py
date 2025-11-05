@@ -13,10 +13,11 @@ class ProcessProfileDynamoDBAdapter(BaseDynamoDBAdapter):
     def create_process_profile(self, profile_data: Dict[str, Any]) -> Dict[str, Any]:
         try:
             # Check if unassigned requirement exists (recruiter_name is empty)
+            from decimal import Decimal
             response = self.process_profiles_table.scan(
                 FilterExpression='requirement_id = :req_id AND recruiter_name = :empty',
                 ExpressionAttributeValues={
-                    ':req_id': profile_data['requirement_id'],
+                    ':req_id': Decimal(str(profile_data['requirement_id'])),
                     ':empty': ''
                 }
             )
@@ -30,7 +31,7 @@ class ProcessProfileDynamoDBAdapter(BaseDynamoDBAdapter):
             response = self.process_profiles_table.scan(
                 FilterExpression='requirement_id = :req_id AND recruiter_name = :recruiter',
                 ExpressionAttributeValues={
-                    ':req_id': profile_data['requirement_id'],
+                    ':req_id': Decimal(str(profile_data['requirement_id'])),
                     ':recruiter': profile_data['recruiter_name']
                 }
             )
@@ -63,10 +64,10 @@ class ProcessProfileDynamoDBAdapter(BaseDynamoDBAdapter):
             profile_id = profile_data.get('profile_id')
             if profile_id is None or profile_id == 0:
                 filter_expr = 'requirement_id = :req_id AND profile_id = :zero'
-                expr_values = {':req_id': profile_data['requirement_id'], ':zero': 0}
+                expr_values = {':req_id': Decimal(str(profile_data['requirement_id'])), ':zero': Decimal('0')}
             else:
                 filter_expr = 'requirement_id = :req_id AND profile_id = :prof_id'
-                expr_values = {':req_id': profile_data['requirement_id'], ':prof_id': profile_id}
+                expr_values = {':req_id': Decimal(str(profile_data['requirement_id'])), ':prof_id': Decimal(str(profile_id))}
             
             response = self.process_profiles_table.scan(
                 FilterExpression=filter_expr,
@@ -91,10 +92,11 @@ class ProcessProfileDynamoDBAdapter(BaseDynamoDBAdapter):
     
     def get_profiles_by_requirement(self, requirement_id: int) -> list:
         try:
+            from decimal import Decimal
             response = self.process_profiles_table.scan(
                 FilterExpression='requirement_id = :req_id AND attribute_exists(profile_id)',
                 ExpressionAttributeValues={
-                    ':req_id': requirement_id
+                    ':req_id': Decimal(str(requirement_id))
                 }
             )
             items = response.get('Items', [])
@@ -106,10 +108,11 @@ class ProcessProfileDynamoDBAdapter(BaseDynamoDBAdapter):
     
     def get_active_profiles_by_requirement(self, requirement_id: int) -> list:
         try:
+            from decimal import Decimal
             response = self.process_profiles_table.scan(
                 FilterExpression='requirement_id = :req_id AND actively_working = :active',
                 ExpressionAttributeValues={
-                    ':req_id': requirement_id,
+                    ':req_id': Decimal(str(requirement_id)),
                     ':active': 'Yes'
                 }
             )
@@ -119,10 +122,11 @@ class ProcessProfileDynamoDBAdapter(BaseDynamoDBAdapter):
     
     def get_profiles_by_requirement_and_recruiter(self, requirement_id: int, recruiter_name: str) -> list:
         try:
+            from decimal import Decimal
             response = self.process_profiles_table.scan(
                 FilterExpression='requirement_id = :req_id AND recruiter_name = :recruiter AND attribute_exists(profile_id)',
                 ExpressionAttributeValues={
-                    ':req_id': requirement_id,
+                    ':req_id': Decimal(str(requirement_id)),
                     ':recruiter': recruiter_name
                 }
             )
@@ -135,11 +139,12 @@ class ProcessProfileDynamoDBAdapter(BaseDynamoDBAdapter):
     
     def update_actively_working(self, requirement_id: int, profile_id: int, actively_working: str) -> bool:
         try:
+            from decimal import Decimal
             response = self.process_profiles_table.scan(
                 FilterExpression='requirement_id = :req_id AND profile_id = :prof_id',
                 ExpressionAttributeValues={
-                    ':req_id': requirement_id,
-                    ':prof_id': profile_id
+                    ':req_id': Decimal(str(requirement_id)),
+                    ':prof_id': Decimal(str(profile_id))
                 }
             )
             
@@ -155,10 +160,11 @@ class ProcessProfileDynamoDBAdapter(BaseDynamoDBAdapter):
     
     def update_actively_working_by_recruiter(self, requirement_id: int, recruiter_name: str, actively_working: str) -> bool:
         try:
+            from decimal import Decimal
             response = self.process_profiles_table.scan(
                 FilterExpression='requirement_id = :req_id AND recruiter_name = :recruiter',
                 ExpressionAttributeValues={
-                    ':req_id': requirement_id,
+                    ':req_id': Decimal(str(requirement_id)),
                     ':recruiter': recruiter_name
                 }
             )
@@ -175,9 +181,10 @@ class ProcessProfileDynamoDBAdapter(BaseDynamoDBAdapter):
     
     def update_process_profile_recruiter(self, requirement_id: int, recruiter_name: str) -> bool:
         try:
+            from decimal import Decimal
             response = self.process_profiles_table.scan(
                 FilterExpression='requirement_id = :req_id',
-                ExpressionAttributeValues={':req_id': requirement_id}
+                ExpressionAttributeValues={':req_id': Decimal(str(requirement_id))}
             )
             
             if response.get('Items'):
@@ -192,11 +199,12 @@ class ProcessProfileDynamoDBAdapter(BaseDynamoDBAdapter):
     
     def update_process_profile_remarks(self, requirement_id: int, profile_id: int, remarks: str = None) -> bool:
         try:
+            from decimal import Decimal
             response = self.process_profiles_table.scan(
                 FilterExpression='requirement_id = :req_id AND profile_id = :prof_id',
                 ExpressionAttributeValues={
-                    ':req_id': requirement_id,
-                    ':prof_id': profile_id
+                    ':req_id': Decimal(str(requirement_id)),
+                    ':prof_id': Decimal(str(profile_id))
                 }
             )
             
@@ -212,9 +220,10 @@ class ProcessProfileDynamoDBAdapter(BaseDynamoDBAdapter):
     
     def update_process_profile_profile(self, requirement_id: int, profile_id: int) -> bool:
         try:
+            from decimal import Decimal
             response = self.process_profiles_table.scan(
                 FilterExpression='requirement_id = :req_id',
-                ExpressionAttributeValues={':req_id': requirement_id}
+                ExpressionAttributeValues={':req_id': Decimal(str(requirement_id))}
             )
             
             if response.get('Items'):
@@ -246,6 +255,8 @@ class ProcessProfileDynamoDBAdapter(BaseDynamoDBAdapter):
                         profile_status = profile.get('status', 1)
                         stage = status_map.get(profile_status, 'Unknown')
                         profile['stage'] = stage
+                        # Add recruiter_name from process_profile
+                        profile['recruiter_name'] = process_profile.get('recruiter_name')
                         enriched_profiles.append(profile)
             return enriched_profiles
         except ClientError:

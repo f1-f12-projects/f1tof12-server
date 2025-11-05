@@ -6,7 +6,7 @@ from hmac import new as hmac_new
 from hashlib import sha256
 from base64 import b64encode
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from auth import verify_cognito_token, require_admin, require_manager, require_lead, get_user_info
+from auth import require_admin, require_lead
 from typing import Optional
 from scripts.utils.response import success_response, handle_error
 from scripts.constants import AWS_REGION, ALLOWED_ROLES, DEFAULT_ROLE
@@ -43,8 +43,8 @@ def get_cognito_config():
         return user_pool_id, client_id, client_secret
     
     # Get customer for multi-tenant support
-    customer = getenv('CUSTOMER', '')
-    path_prefix = f'/f1tof12/{ENVIRONMENT}/{customer}' if customer else f'/f1tof12/{ENVIRONMENT}'
+    customer = getenv('CUSTOMER')
+    path_prefix = f'/f1tof12/{ENVIRONMENT}/{customer}'
     
     # Get from Parameter Store (parameters are in us-east-1)
     ssm = boto3_client('ssm', region_name='us-east-1')
@@ -54,7 +54,7 @@ def get_cognito_config():
             f'{path_prefix}/cognito/client-id',
             f'{path_prefix}/cognito/client-secret'
         ]
-
+        
         response = ssm.get_parameters(Names=param_names, WithDecryption=True)
         
         params = {p['Name']: p['Value'] for p in response['Parameters']}
@@ -64,7 +64,7 @@ def get_cognito_config():
         if missing:
             logger.error(f"Missing SSM parameters: {missing}")
             logger.error(f"Found parameters: {list(params.keys())}")
-            raise HTTPException(status_code=500, detail=f"Missing parameters: {missing}")
+            raise HTTPException(status_code=500, detail=f"Missing SSM parameters: {missing}")
             
         return (
             params[param_names[0]],
@@ -74,8 +74,8 @@ def get_cognito_config():
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"SSM Parameter error for {ENVIRONMENT}/{customer}: {e}")
-        raise HTTPException(status_code=500, detail=f"Cognito configuration error for {ENVIRONMENT}/{customer}")
+        logger.error(f"SSM Parameter error: {e}")
+        raise HTTPException(status_code=500, detail=f"Cognito configuration error: {str(e)}")
 
 def authenticate_with_cognito(username: str, password: str):
     USER_POOL_ID, CLIENT_ID, CLIENT_SECRET = get_cognito_config()
@@ -83,7 +83,6 @@ def authenticate_with_cognito(username: str, password: str):
         raise HTTPException(status_code=500, detail="Failed to authenticate. Please check the server configuration.")
     
     client = boto3_client('cognito-idp', region_name=AWS_REGION)
-    logger.debug(f"Created client")
     
     secret_hash = calculate_secret_hash(username, CLIENT_ID, CLIENT_SECRET)
     
@@ -190,8 +189,6 @@ class PasswordChange(BaseModel):
     temporary_password: str
     new_password: str
 
-
-
 @router.post("/login", status_code=status.HTTP_200_OK)
 def login(user: UserLogin):
     logger.info(f"[ENTRY] Login API called for username: {user.username}")
@@ -290,28 +287,24 @@ def get_cognito_users(user_info: dict = Depends(require_lead)):
             "created": user['UserCreateDate'].isoformat(),
             "enabled": user['Enabled']
         } for user in response['Users']]
-        logger.info("[EXIT] Get users API successful")
+
         return success_response(users, "Users retrieved successfully")
     except Exception as e:
         logger.error(f"[ERROR] Get users API failed: {str(e)}")
         handle_error(e, "fetch users")
 
 @router.get("/user/{username}")
-def get_user_details(username: str, user_info: dict = Depends(get_user_info)):
+def get_user_details(username: str, credentials: HTTPAuthorizationCredentials = Depends(security)):
     logger.info(f"[ENTRY] Get user details API called for: {username}")
     
-    # Check if user is accessing their own details or has lead permissions
-    if user_info['username'] != username:
-        # Require lead role for accessing other users' details
-        from scripts.constants import ROLES, LEAD_ROLE, MANAGER_ROLE
-        user_role = user_info['role']
-        if user_role not in [ROLES[LEAD_ROLE], ROLES[MANAGER_ROLE]]:
-            raise HTTPException(status_code=403, detail="Access denied. Lead role required to view other users.")
-    
-    USER_POOL_ID, _, _ = get_cognito_config()
-    client = boto3_client('cognito-idp', region_name=AWS_REGION)
     try:
-        response = client.admin_get_user(UserPoolId=USER_POOL_ID, Username=username)
+        client = boto3_client('cognito-idp', region_name=AWS_REGION)
+        
+        response = client.get_user(AccessToken=credentials.credentials)
+        
+        # Only allow users to fetch their own details
+        if response['Username'].lower() != username.lower():
+            raise HTTPException(status_code=403, detail={"error": "ACCESS_DENIED", "message": "Can only access your own details", "code": "USER_403"})
         
         def get_attr(attributes, name):
             return next((attr['Value'] for attr in attributes if attr['Name'] == name), None)
@@ -322,17 +315,16 @@ def get_user_details(username: str, user_info: dict = Depends(get_user_info)):
             "phone_number": get_attr(response['UserAttributes'], 'phone_number'),
             "given_name": get_attr(response['UserAttributes'], 'given_name'),
             "family_name": get_attr(response['UserAttributes'], 'family_name'),
-            "role": get_attr(response['UserAttributes'], 'custom:role') or DEFAULT_ROLE,
-            "status": response['UserStatus'],
-            "created": response['UserCreateDate'].isoformat(),
-            "enabled": response['Enabled']
+            "role": get_attr(response['UserAttributes'], 'custom:role') or DEFAULT_ROLE
         }
         
         logger.info(f"[EXIT] Get user details API successful for: {username}")
         return success_response(user_details, "User details retrieved successfully")
-    except client.exceptions.UserNotFoundException:
-        logger.error(f"[ERROR] User not found: {username}")
-        raise HTTPException(status_code=404, detail={"error": "USER_NOT_FOUND", "message": "User not found", "code": "USER_404"})
+    except client.exceptions.NotAuthorizedException:
+        logger.error("[ERROR] Invalid or expired token")
+        raise HTTPException(status_code=401, detail={"error": "INVALID_TOKEN", "message": "Invalid or expired token", "code": "USER_401"})
+    except HTTPException as e:
+        raise
     except Exception as e:
         logger.error(f"[ERROR] Get user details API failed for {username}: {str(e)}")
         handle_error(e, "fetch user details")

@@ -2,8 +2,15 @@ import logging
 import os
 from logging.handlers import RotatingFileHandler
 
-# Configure logging for local development
-if not os.environ.get('AWS_LAMBDA_FUNCTION_NAME'):
+# Configure logging
+if os.environ.get('AWS_LAMBDA_FUNCTION_NAME'):
+    # Lambda environment - use CloudWatch
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s [%(filename)s:%(funcName)s:%(levelname)s] - %(message)s'
+    )
+else:
+    # Local development - use file logging
     log_dir = 'logs'
     os.makedirs(log_dir, exist_ok=True)
     

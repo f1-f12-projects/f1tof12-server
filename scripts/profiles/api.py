@@ -8,6 +8,8 @@ from scripts.utils.remarks import append_remarks
 from typing import Optional, Dict, Any
 from datetime import date
 
+logger = logging.getLogger(__name__)
+
 class StatusUpdate(BaseModel):
     status: int
     remarks: Optional[str] = None
@@ -54,9 +56,9 @@ class ProcessProfileCreate(BaseModel):
     profile_id: int
     remarks: Optional[str] = None
 
-class DateRangeQuery(BaseModel):
-    start_date: date
-    end_date: date
+class DateRangeRequest(BaseModel):
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
 
 @router.post("/add")
 def add_profile(profile: ProfileCreate, user_info: dict = Depends(require_recruiter)):
@@ -83,10 +85,20 @@ def add_profile(profile: ProfileCreate, user_info: dict = Depends(require_recrui
     except Exception as e:
         handle_error(e, "add profile")
 
-@router.get("/by-date-range")
-def get_profiles_by_date_range(start_date: date, end_date: date, user_info: dict = Depends(require_recruiter)):
-    logging.info(f"ENTRY: get_profiles_by_date_range - start_date={start_date}, end_date={end_date}, user={user_info.get('username')}, role={user_info.get('role')}")
+@router.post("/by-date-range")
+def get_profiles_by_date_range(date_range: DateRangeRequest, user_info: dict = Depends(require_recruiter)):
+    # Use provided dates or default to current week
+    start_date = date_range.start_date or "2025-11-03"
+    end_date = date_range.end_date or "2025-11-09"
+    
+    logger.info(f"Received start_date: {start_date}, end_date: {end_date}")
     try:
+        from datetime import datetime
+        
+        # Convert string dates to date objects
+        start_date_obj = datetime.strptime(start_date, '%Y-%m-%d').date()
+        end_date_obj = datetime.strptime(end_date, '%Y-%m-%d').date()
+        
         db = get_database()
         user_role = user_info.get('role')
         
@@ -94,7 +106,7 @@ def get_profiles_by_date_range(start_date: date, end_date: date, user_info: dict
         # If user is recruiter, show only their profiles
         recruiter_name = None if user_role in ['lead', 'manager'] else user_info.get('username')
         
-        profiles_data = db.profile.get_profiles_by_date_range(start_date, end_date, recruiter_name)
+        profiles_data = db.profile.get_profiles_by_date_range(start_date_obj, end_date_obj, recruiter_name)
         result = success_response(profiles_data, "Profiles retrieved successfully")
         logging.info(f"EXIT: get_profiles_by_date_range - result count={len(profiles_data)}")
         return result
@@ -131,6 +143,7 @@ def get_profile(profile_id: int, user_info: dict = Depends(require_recruiter)):
             raise HTTPException(status_code=404, detail="Profile not found")
         return success_response(profile_data, "Profile retrieved successfully")
     except HTTPException:
+        logger.error("HTTPException in get profile")
         raise
     except Exception as e:
         handle_error(e, "get profile")
@@ -162,6 +175,7 @@ def update_profile(profile_id: int, profile_update: ProfileUpdate, user_info: di
         
         return success_response(message="Profile updated successfully")
     except HTTPException:
+        logger.error("HTTPException in update profile")
         raise
     except Exception as e:
         handle_error(e, "update profile")
@@ -213,8 +227,10 @@ def update_status(profile_id: int, status_update: StatusUpdate, user_info: dict 
         
         return success_response(message="Status updated successfully")
     except HTTPException:
+        logger.error("HTTPException in profile update status")
         raise
     except Exception as e:
+        logger.error(f"Error in update status: {str(e)}")
         handle_error(e, "update status")
 
 @router.put("/{profile_id}/remarks")
@@ -234,6 +250,7 @@ def update_remarks(profile_id: int, remarks_update: RemarksUpdate, user_info: di
         
         return success_response(message="Remarks updated successfully")
     except HTTPException:
+        logger.error("HTTPException in profile update remarks")
         raise
     except Exception as e:
         handle_error(e, "update remarks")

@@ -48,10 +48,16 @@ Resources:
           # Cognito config fetched at runtime from us-east-1
           # CloudFront secret fetched at runtime from SSM
           USE_DYNAMODB: true
-          USERS_TABLE: !Ref UsersTable
-          COMPANIES_TABLE: !Ref CompaniesTable
-          SPOCS_TABLE: !Ref SPOCsTable
-          INVOICES_TABLE: !Ref InvoicesTable
+          USERS_TABLE: f1tof12-users
+          COMPANIES_TABLE: f1tof12-companies
+          SPOCS_TABLE: f1tof12-spocs
+          INVOICES_TABLE: f1tof12-invoices
+          COUNTERS_TABLE: f1tof12-counters
+          REQUIREMENTS_TABLE: f1tof12-requirements
+          PROCESS_PROFILES_TABLE: f1tof12-process-profiles
+          PROFILES_TABLE: f1tof12-profiles
+          REQUIREMENT_STATUSES_TABLE: f1tof12-requirement-statuses
+          PROFILE_STATUSES_TABLE: f1tof12-profile-statuses
       Policies:
         - Version: "2012-10-17"
           Statement:
@@ -63,6 +69,7 @@ Resources:
                 - cognito-idp:InitiateAuth
                 - cognito-idp:RespondToAuthChallenge
                 - cognito-idp:GlobalSignOut
+                - cognito-idp:AdminGetUser
                 - cognito-idp:AdminUpdateUserAttributes
                 - cognito-idp:AdminResetUserPassword
                 - cognito-idp:AdminConfirmSignUp
@@ -87,11 +94,16 @@ Resources:
                 - dynamodb:Scan
                 - dynamodb:Query
               Resource:
-                - !GetAtt UsersTable.Arn
-                - !GetAtt CompaniesTable.Arn
-                - !GetAtt SPOCsTable.Arn
-                - !GetAtt InvoicesTable.Arn
-                - !GetAtt CountersTable.Arn
+                - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/f1tof12-users"
+                - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/f1tof12-companies"
+                - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/f1tof12-spocs"
+                - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/f1tof12-invoices"
+                - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/f1tof12-counters"
+                - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/f1tof12-requirements"
+                - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/f1tof12-process-profiles"
+                - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/f1tof12-profiles"
+                - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/f1tof12-requirement-statuses"
+                - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/f1tof12-profile-statuses"
       Events:
         ApiEvent:
           Type: HttpApi
@@ -103,66 +115,6 @@ Resources:
           Properties:
             Path: /
             Method: ANY
-
-  UsersTable:
-    Type: AWS::DynamoDB::Table
-    Properties:
-      TableName: f1tof12-users
-      AttributeDefinitions:
-        - AttributeName: username
-          AttributeType: S
-      KeySchema:
-        - AttributeName: username
-          KeyType: HASH
-      BillingMode: PAY_PER_REQUEST
-
-  CompaniesTable:
-    Type: AWS::DynamoDB::Table
-    Properties:
-      TableName: f1tof12-companies
-      AttributeDefinitions:
-        - AttributeName: id
-          AttributeType: N
-      KeySchema:
-        - AttributeName: id
-          KeyType: HASH
-      BillingMode: PAY_PER_REQUEST
-
-  SPOCsTable:
-    Type: AWS::DynamoDB::Table
-    Properties:
-      TableName: f1tof12-spocs
-      AttributeDefinitions:
-        - AttributeName: id
-          AttributeType: N
-      KeySchema:
-        - AttributeName: id
-          KeyType: HASH
-      BillingMode: PAY_PER_REQUEST
-
-  InvoicesTable:
-    Type: AWS::DynamoDB::Table
-    Properties:
-      TableName: f1tof12-invoices
-      AttributeDefinitions:
-        - AttributeName: id
-          AttributeType: N
-      KeySchema:
-        - AttributeName: id
-          KeyType: HASH
-      BillingMode: PAY_PER_REQUEST
-
-  CountersTable:
-    Type: AWS::DynamoDB::Table
-    Properties:
-      TableName: f1tof12-counters
-      AttributeDefinitions:
-        - AttributeName: table_name
-          AttributeType: S
-      KeySchema:
-        - AttributeName: table_name
-          KeyType: HASH
-      BillingMode: PAY_PER_REQUEST
 
   ThrottleAlarm:
     Type: AWS::CloudWatch::Alarm
@@ -184,18 +136,4 @@ Outputs:
   ApiUrl:
     Description: "API Gateway endpoint URL"
     Value: !Sub "https://${ServerlessHttpApi}.execute-api.${AWS::Region}.amazonaws.com/"
-  UsersTableName:
-    Description: "DynamoDB Users Table Name"
-    Value: !Ref UsersTable
-  CompaniesTableName:
-    Description: "DynamoDB Companies Table Name"
-    Value: !Ref CompaniesTable
-  SPOCsTableName:
-    Description: "DynamoDB SPOCs Table Name"
-    Value: !Ref SPOCsTable
-  InvoicesTableName:
-    Description: "DynamoDB Invoices Table Name"
-    Value: !Ref InvoicesTable
-  CountersTableName:
-    Description: "DynamoDB Counters Table Name"
-    Value: !Ref CountersTable
+

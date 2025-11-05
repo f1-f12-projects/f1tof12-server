@@ -93,5 +93,5 @@ def get_version():
 
 @app.get(f"/{os.getenv('CUSTOMER', 'f1tof12')}/health")
 def health_check():
-    return {"status": "ok", "message": "F1toF12 API is running"}
+    return {"status": "ok", "message": "F1toF12 API is running", "version": __version__}
 

@@ -1,0 +1,37 @@
+[
+  {
+    "ResourceType": "AWS::DynamoDB::Table",
+    "LogicalResourceId": "RequirementsTable",
+    "ResourceIdentifier": {
+      "TableName": "f1tof12-requirements"
+    }
+  },
+  {
+    "ResourceType": "AWS::DynamoDB::Table",
+    "LogicalResourceId": "ProcessProfilesTable",
+    "ResourceIdentifier": {
+      "TableName": "f1tof12-process-profiles"
+    }
+  },
+  {
+    "ResourceType": "AWS::DynamoDB::Table",
+    "LogicalResourceId": "ProfilesTable",
+    "ResourceIdentifier": {
+      "TableName": "f1tof12-profiles"
+    }
+  },
+  {
+    "ResourceType": "AWS::DynamoDB::Table",
+    "LogicalResourceId": "RequirementStatusesTable",
+    "ResourceIdentifier": {
+      "TableName": "f1tof12-requirement-statuses"
+    }
+  },
+  {
+    "ResourceType": "AWS::DynamoDB::Table",
+    "LogicalResourceId": "ProfileStatusesTable",
+    "ResourceIdentifier": {
+      "TableName": "f1tof12-profile-statuses"
+    }
+  }
+]

@@ -28,6 +28,6 @@ echo "🚀 Deploying to AWS..."
 sam deploy --stack-name $STACK_NAME --region $REGION --capabilities CAPABILITY_IAM --s3-bucket $S3_BUCKET_NAME || { echo "❌ Deploy failed"; exit 1; }
 
 echo "📊 Setting up DynamoDB tables..."
-python setup_environment.py $ENV || echo "⚠️  DynamoDB setup skipped (tables may already exist)"
+python3 setup_environment.py $ENV || echo "⚠️  DynamoDB setup skipped (tables may already exist)"
 
 echo "✅ Clean build and deploy complete!"
