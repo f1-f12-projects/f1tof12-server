@@ -9,7 +9,8 @@ sys.path.append(project_root)
 import boto3
 from scripts.db.config import (
     AWS_REGION, COMPANIES_TABLE, SPOCS_TABLE, INVOICES_TABLE, 
-    REQUIREMENTS_TABLE, COUNTERS_TABLE, PROFILES_TABLE, PROCESS_PROFILES_TABLE
+    REQUIREMENTS_TABLE, COUNTERS_TABLE, PROFILES_TABLE, PROCESS_PROFILES_TABLE,
+    LEAVES_TABLE, LEAVE_BALANCES_TABLE
 )
 
 def clear_table(dynamodb, table_name, key_name):
@@ -45,7 +46,9 @@ def main():
         INVOICES_TABLE: 'invoices',
         REQUIREMENTS_TABLE: 'requirements',
         PROFILES_TABLE: 'profiles',
-        PROCESS_PROFILES_TABLE: 'process_profiles'
+        PROCESS_PROFILES_TABLE: 'process_profiles',
+        LEAVES_TABLE: 'leaves',
+        LEAVE_BALANCES_TABLE: 'leave_balances'
     }
     
     tables = [
@@ -55,6 +58,8 @@ def main():
         (REQUIREMENTS_TABLE, 'requirement_id'),
         (PROFILES_TABLE, 'id'),
         (PROCESS_PROFILES_TABLE, 'id'),
+        (LEAVES_TABLE, 'id'),
+        (LEAVE_BALANCES_TABLE, 'id'),
     ]
     
     print("Available tables:")

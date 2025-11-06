@@ -21,3 +21,5 @@ PROFILE_STATUSES_TABLE = os.getenv('PROFILE_STATUSES_TABLE', f'f1tof12-profile-s
 COUNTERS_TABLE = os.getenv('COUNTERS_TABLE', f'f1tof12-counters{TABLE_SUFFIX}')
 PROFILES_TABLE = os.getenv('PROFILES_TABLE', f'f1tof12-profiles{TABLE_SUFFIX}')
 PROCESS_PROFILES_TABLE = os.getenv('PROCESS_PROFILES_TABLE', f'f1tof12-process-profiles{TABLE_SUFFIX}')
+LEAVES_TABLE = os.getenv('LEAVES_TABLE', f'f1tof12-leaves{TABLE_SUFFIX}')
+LEAVE_BALANCES_TABLE = os.getenv('LEAVE_BALANCES_TABLE', f'f1tof12-leave-balances{TABLE_SUFFIX}')

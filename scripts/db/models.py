@@ -116,3 +116,29 @@ class ProcessProfile(Base):
     
     requirement = relationship("Requirement")
     profile = relationship("Profile")
+
+class Leave(Base):
+    __tablename__ = "leaves"
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String, index=True)
+    leave_type = Column(String)
+    start_date = Column(Date)
+    end_date = Column(Date)
+    days = Column(Integer)
+    reason = Column(String)
+    status = Column(String, default="pending")
+    approver_username = Column(String)
+    approver_comments = Column(String)
+    created_date = Column(DateTime, default=lambda: datetime.now(ZoneInfo('Asia/Kolkata')))
+    updated_date = Column(DateTime, default=lambda: datetime.now(ZoneInfo('Asia/Kolkata')), onupdate=lambda: datetime.now(ZoneInfo('Asia/Kolkata')))
+
+class LeaveBalance(Base):
+    __tablename__ = "leave_balances"
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String, unique=True, index=True)
+    annual_leave = Column(Integer, default=20)
+    sick_leave = Column(Integer, default=10)
+    casual_leave = Column(Integer, default=5)
+    year = Column(Integer, default=lambda: datetime.now().year)
+    created_date = Column(DateTime, default=lambda: datetime.now(ZoneInfo('Asia/Kolkata')))
+    updated_date = Column(DateTime, default=lambda: datetime.now(ZoneInfo('Asia/Kolkata')), onupdate=lambda: datetime.now(ZoneInfo('Asia/Kolkata')))

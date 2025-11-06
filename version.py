@@ -1,10 +1,13 @@
-__version__ = "3.1.1"
-__major_version__ = 3
-__minor_version__ = 1
-__patch_version__ = 1
+__version__ = "4.0.0"
+__major_version__ = 4
+__minor_version__ = 0
+__patch_version__ = 0
 
 # Latest version should be on top
 __changelog__ = {
+    "4.0.0": [
+        "Leave management system implementation"
+    ],
     "3.1.1": [
         "Minor version update"
     ],

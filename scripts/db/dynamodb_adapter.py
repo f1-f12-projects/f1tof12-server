@@ -5,6 +5,7 @@ from scripts.db.dynamodb_adapters.invoice_dynamodb_adapter import InvoiceDynamoD
 from scripts.db.dynamodb_adapters.requirement_dynamodb_adapter import RequirementDynamoDBAdapter
 from scripts.db.dynamodb_adapters.profile_dynamodb_adapter import ProfileDynamoDBAdapter
 from scripts.db.dynamodb_adapters.process_profile_dynamodb_adapter import ProcessProfileDynamoDBAdapter
+from scripts.db.dynamodb_adapters.leave_dynamodb_adapter import LeaveDynamoDBAdapter
 
 class DynamoDBAdapter:
     def __init__(self):
@@ -15,3 +16,4 @@ class DynamoDBAdapter:
         self.requirement = RequirementDynamoDBAdapter()
         self.profile = ProfileDynamoDBAdapter()
         self.process_profile = ProcessProfileDynamoDBAdapter()
+        self.leave = LeaveDynamoDBAdapter()

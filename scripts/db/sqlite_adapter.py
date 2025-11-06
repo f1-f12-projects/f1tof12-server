@@ -5,6 +5,7 @@ from scripts.db.adapters.invoice_adapter import InvoiceAdapter
 from scripts.db.adapters.requirement_adapter import RequirementAdapter
 from scripts.db.adapters.profile_adapter import ProfileAdapter
 from scripts.db.adapters.process_profile_adapter import ProcessProfileAdapter
+from scripts.db.adapters.leave_adapter import LeaveAdapter
 
 class SQLiteAdapter:
     def __init__(self):
@@ -15,3 +16,4 @@ class SQLiteAdapter:
         self.requirement = RequirementAdapter()
         self.profile = ProfileAdapter()
         self.process_profile = ProcessProfileAdapter()
+        self.leave = LeaveAdapter()

@@ -7,7 +7,12 @@ from botocore.exceptions import ClientError
 project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.append(project_root)
 
-from scripts.db.config import AWS_REGION, COMPANIES_TABLE, SPOCS_TABLE, INVOICES_TABLE, REQUIREMENTS_TABLE, REQUIREMENT_STATUSES_TABLE, PROFILE_STATUSES_TABLE, COUNTERS_TABLE, PROFILES_TABLE, PROCESS_PROFILES_TABLE
+from scripts.db.config import (  # noqa: E402
+    AWS_REGION, COMPANIES_TABLE, SPOCS_TABLE, INVOICES_TABLE, 
+    REQUIREMENTS_TABLE, REQUIREMENT_STATUSES_TABLE, PROFILE_STATUSES_TABLE, 
+    COUNTERS_TABLE, PROFILES_TABLE, PROCESS_PROFILES_TABLE, 
+    LEAVES_TABLE, LEAVE_BALANCES_TABLE
+)
 
 def create_dynamodb_tables():
     dynamodb = boto3.resource('dynamodb', region_name=AWS_REGION)
@@ -57,6 +62,16 @@ def create_dynamodb_tables():
             'name': COUNTERS_TABLE,
             'key': 'table_name',
             'type': 'S'
+        },
+        {
+            'name': LEAVES_TABLE,
+            'key': 'id',
+            'type': 'N'
+        },
+        {
+            'name': LEAVE_BALANCES_TABLE,
+            'key': 'id',
+            'type': 'N'
         }
     ]
     

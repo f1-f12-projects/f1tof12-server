@@ -33,7 +33,6 @@ class BaseAdapter:
     
     def _update_record(self, model_class: Type, record_id: int, update_data: Dict[str, Any]) -> bool:
         with self._db_session() as db:
-            column_updates = {getattr(model_class, key): value for key, value in update_data.items()}
-            result = db.query(model_class).filter(model_class.id == record_id).update(column_updates)
+            result = db.query(model_class).filter(model_class.id == record_id).update(update_data)
             db.commit()
             return result > 0

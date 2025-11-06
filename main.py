@@ -8,10 +8,10 @@ from scripts.spoc.api import router as spoc_router
 from scripts.invoices.api import router as invoice_router
 from scripts.requirements.api import router as requirements_router
 from scripts.profiles.api import router as profiles_router
+from scripts.leaves.api import router as leaves_router
 from scripts.utils.cloudfront_middleware import CloudFrontMiddleware
 from version import __version__, __changelog__
 from load_env import load_environment
-from scripts.utils import logging_config  # Import logging configuration
 import logging
 import os
 
@@ -36,7 +36,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 # Include routers with customer prefix
 customer_prefix = f"/{os.getenv('CUSTOMER', 'f1tof12')}"
-routers = [customer_router, users_router, spoc_router, invoice_router, requirements_router, profiles_router]
+routers = [customer_router, users_router, spoc_router, invoice_router, requirements_router, profiles_router, leaves_router]
 for router in routers:
     app.include_router(router, prefix=customer_prefix)
 

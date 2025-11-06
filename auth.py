@@ -2,7 +2,7 @@ from fastapi import HTTPException, status, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import boto3
 from typing import List
-from scripts.constants import AWS_REGION, DEFAULT_ROLE, ROLES, FINANCE_ROLE, LEAD_ROLE, MANAGER_ROLE, RECRUITER_ROLE
+from scripts.constants import AWS_REGION, DEFAULT_ROLE, ROLES, FINANCE_ROLE, LEAD_ROLE, MANAGER_ROLE, RECRUITER_ROLE, HR_ROLE
 
 security = HTTPBearer()
 cognito_client = boto3.client('cognito-idp', region_name=AWS_REGION)
@@ -30,6 +30,30 @@ def get_user_info(credentials: HTTPAuthorizationCredentials = Depends(security))
 def verify_cognito_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
     user_info = get_user_info(credentials)
     return user_info['username']
+
+def validate_cognito_user(username: str):
+    """Validate if user exists in Cognito"""
+    try:
+        from scripts.utils.cognito import get_cognito_config
+        user_pool_id, _, _ = get_cognito_config()
+        
+        cognito_client.admin_get_user(
+            UserPoolId=user_pool_id,
+            Username=username
+        )
+        return True
+    except cognito_client.exceptions.UserNotFoundException:
+        raise HTTPException(status_code=404, detail={
+            "error": "USER_NOT_FOUND",
+            "message": "User not found in Cognito",
+            "code": "USER_404"
+        })
+    except Exception as e:
+        raise HTTPException(status_code=500, detail={
+            "error": "COGNITO_ERROR",
+            "message": "Error validating user in Cognito",
+            "code": "USER_500"
+        })
 
 def require_roles(allowed_roles: List[str]):
     def decorator(credentials: HTTPAuthorizationCredentials = Depends(security)):
@@ -59,6 +83,7 @@ require_finance = require_roles([ROLES[FINANCE_ROLE]])
 require_lead = require_roles([ROLES[LEAD_ROLE]])
 require_manager = require_roles([ROLES[MANAGER_ROLE]])
 require_recruiter = require_roles([ROLES[RECRUITER_ROLE]])
+require_hr = require_roles([ROLES[HR_ROLE]])
 
 # Aliases
 require_admin = require_manager
@@ -67,3 +92,6 @@ require_management = require_manager
 # Combined role dependencies
 require_lead_or_recruiter = require_roles([ROLES[LEAD_ROLE], ROLES[RECRUITER_ROLE]])
 require_finance_or_manager = require_roles([ROLES[FINANCE_ROLE], ROLES[MANAGER_ROLE]])
+require_hr_or_lead = require_roles([ROLES[HR_ROLE], ROLES[LEAD_ROLE]])
+require_user_management = require_roles([ROLES[HR_ROLE], ROLES[MANAGER_ROLE]])
+require_leave_management = require_hr_or_lead

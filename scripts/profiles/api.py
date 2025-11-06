@@ -2,7 +2,7 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from scripts.db.database_factory import get_database
-from auth import require_recruiter
+from auth import require_recruiter, get_user_info
 from scripts.utils.response import success_response, handle_error
 from scripts.utils.remarks import append_remarks
 from typing import Optional, Dict, Any
@@ -86,14 +86,15 @@ def add_profile(profile: ProfileCreate, user_info: dict = Depends(require_recrui
         handle_error(e, "add profile")
 
 @router.post("/by-date-range")
-def get_profiles_by_date_range(date_range: DateRangeRequest, user_info: dict = Depends(require_recruiter)):
-    # Use provided dates or default to current week
-    start_date = date_range.start_date or "2025-11-03"
-    end_date = date_range.end_date or "2025-11-09"
+def get_profiles_by_date_range(date_range: DateRangeRequest, user_info: dict = Depends(get_user_info)):
+    # Use provided dates or default to current date
+    from datetime import datetime
+    today = datetime.now().date().isoformat()
+    start_date = date_range.start_date or today
+    end_date = date_range.end_date or today
     
     logger.info(f"Received start_date: {start_date}, end_date: {end_date}")
     try:
-        from datetime import datetime
         
         # Convert string dates to date objects
         start_date_obj = datetime.strptime(start_date, '%Y-%m-%d').date()
