@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, field_validator
 from scripts.db.database_factory import get_database
-from auth import require_manager, require_finance_or_manager
+from auth import require_manager, require_finance_or_manager, require_recruiter
 from scripts.utils.response import success_response, handle_error
 from scripts.constants import USER_STATUS_ACTIVE, USER_STATUS_INACTIVE
 import logging
@@ -32,7 +32,7 @@ def register(company: CompanyCreate, user_info: dict = Depends(require_manager))
     logger.info("Entering register method")
     try:
         db = get_database()
-        existing_company = db.get_company_by_name(company.name)
+        existing_company = db.company.get_company_by_name(company.name)
         if existing_company:
             raise HTTPException(status_code=409, detail={
                 "error": "COMPANY_EXISTS",
@@ -40,7 +40,7 @@ def register(company: CompanyCreate, user_info: dict = Depends(require_manager))
                 "code": "COMP_409"
             })
         
-        db.create_company(company.name, company.spoc, company.email_id, company.status)
+        db.company.create_company(company.name, company.spoc, company.email_id, company.status)
         logger.info("Exiting register method - success")
         return success_response(message="Company registered successfully")
     except HTTPException:
@@ -51,16 +51,28 @@ def register(company: CompanyCreate, user_info: dict = Depends(require_manager))
         handle_error(e, "register company")
 
 @router.get("/customer/list")
-def list_companies(user_info: dict = Depends(require_finance_or_manager)):
+def list_companies(user_info: dict = Depends(require_recruiter)):
     logger.info("Entering list_companies method")
     try:
         db = get_database()
-        companies_data = db.list_companies()
+        companies_data = db.company.list_companies()
         logger.info("Exiting list_companies method - success")
         return success_response(companies_data, "Companies retrieved successfully")
     except Exception as e:
         logger.error("Exiting list_companies method - error")
         handle_error(e, "list companies")
+
+@router.get("/customer/list/active")
+def list_active_companies(user_info: dict = Depends(require_recruiter)):
+    logger.info("Entering list_active_companies method")
+    try:
+        db = get_database()
+        companies_data = db.company.list_active_companies()
+        logger.info("Exiting list_active_companies method - success")
+        return success_response(companies_data, "Active companies retrieved successfully")
+    except Exception as e:
+        logger.error("Exiting list_active_companies method - error")
+        handle_error(e, "list active companies")
 
 @router.put("/customer/{company_id}/update")
 def update_company(company_id: int, company_update: CompanyUpdate, user_info: dict = Depends(require_manager)):
@@ -82,7 +94,7 @@ def update_company(company_id: int, company_update: CompanyUpdate, user_info: di
             })
         
         db = get_database()
-        success = db.update_company(company_id, update_data)
+        success = db.company.update_company(company_id, update_data)
         if not success:
             raise HTTPException(status_code=404, detail={
                 "error": "COMPANY_NOT_FOUND",

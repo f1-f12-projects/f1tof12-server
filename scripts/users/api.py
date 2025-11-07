@@ -6,9 +6,10 @@ from hmac import new as hmac_new
 from hashlib import sha256
 from base64 import b64encode
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from auth import verify_cognito_token, require_admin, require_manager, require_lead
+from auth import require_admin, require_user_management, require_hr_or_lead
 from typing import Optional
 from scripts.utils.response import success_response, handle_error
+from scripts.utils.cognito import get_cognito_config
 from scripts.constants import AWS_REGION, ALLOWED_ROLES, DEFAULT_ROLE
 import logging
 
@@ -23,67 +24,12 @@ def calculate_secret_hash(username: str, client_id: str, client_secret: str):
     dig = hmac_new(client_secret.encode('utf-8'), message.encode('utf-8'), sha256).digest()
     return b64encode(dig).decode()
 
-def get_cognito_config():
-    from scripts.constants import ENVIRONMENT
-    
-    # Use environment variables in dev, SSM in production
-    if ENVIRONMENT == 'dev':
-        user_pool_id = getenv('COGNITO_USER_POOL_ID')
-        client_id = getenv('COGNITO_CLIENT_ID')
-        client_secret = getenv('COGNITO_CLIENT_SECRET')
-        
-        if not all([user_pool_id, client_id, client_secret]):
-            missing = [k for k, v in {
-                'COGNITO_USER_POOL_ID': user_pool_id,
-                'COGNITO_CLIENT_ID': client_id, 
-                'COGNITO_CLIENT_SECRET': client_secret
-            }.items() if not v]
-            raise HTTPException(status_code=500, detail=f"Missing env variables: {missing}")
-        
-        return user_pool_id, client_id, client_secret
-    
-    # Get customer for multi-tenant support
-    customer = getenv('CUSTOMER', '')
-    path_prefix = f'/f1tof12/{ENVIRONMENT}/{customer}' if customer else f'/f1tof12/{ENVIRONMENT}'
-    
-    # Get from Parameter Store (parameters are in us-east-1)
-    ssm = boto3_client('ssm', region_name='us-east-1')
-    try:
-        param_names = [
-            f'{path_prefix}/cognito/user-pool-id',
-            f'{path_prefix}/cognito/client-id',
-            f'{path_prefix}/cognito/client-secret'
-        ]
-
-        response = ssm.get_parameters(Names=param_names, WithDecryption=True)
-        
-        params = {p['Name']: p['Value'] for p in response['Parameters']}
-        
-        # Check if all parameters were found
-        missing = [name for name in param_names if name not in params]
-        if missing:
-            logger.error(f"Missing SSM parameters: {missing}")
-            logger.error(f"Found parameters: {list(params.keys())}")
-            raise HTTPException(status_code=500, detail=f"Missing parameters: {missing}")
-            
-        return (
-            params[param_names[0]],
-            params[param_names[1]],
-            params[param_names[2]]
-        )
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"SSM Parameter error for {ENVIRONMENT}/{customer}: {e}")
-        raise HTTPException(status_code=500, detail=f"Cognito configuration error for {ENVIRONMENT}/{customer}")
-
 def authenticate_with_cognito(username: str, password: str):
     USER_POOL_ID, CLIENT_ID, CLIENT_SECRET = get_cognito_config()
     if not USER_POOL_ID or not CLIENT_ID or not CLIENT_SECRET:
         raise HTTPException(status_code=500, detail="Failed to authenticate. Please check the server configuration.")
     
     client = boto3_client('cognito-idp', region_name=AWS_REGION)
-    logger.debug(f"Created client")
     
     secret_hash = calculate_secret_hash(username, CLIENT_ID, CLIENT_SECRET)
     
@@ -190,8 +136,6 @@ class PasswordChange(BaseModel):
     temporary_password: str
     new_password: str
 
-
-
 @router.post("/login", status_code=status.HTTP_200_OK)
 def login(user: UserLogin):
     logger.info(f"[ENTRY] Login API called for username: {user.username}")
@@ -270,7 +214,7 @@ def logout(credentials: HTTPAuthorizationCredentials = Depends(security)):
     return success_response(message="Logged out successfully")
 
 @router.get("/users")
-def get_cognito_users(user_info: dict = Depends(require_lead)):
+def get_cognito_users(user_info: dict = Depends(require_hr_or_lead)):
     logger.info("[ENTRY] Get users API called")
     USER_POOL_ID, _, _ = get_cognito_config()
     client = boto3_client('cognito-idp', region_name=AWS_REGION)
@@ -290,14 +234,50 @@ def get_cognito_users(user_info: dict = Depends(require_lead)):
             "created": user['UserCreateDate'].isoformat(),
             "enabled": user['Enabled']
         } for user in response['Users']]
-        logger.info("[EXIT] Get users API successful")
+
         return success_response(users, "Users retrieved successfully")
     except Exception as e:
         logger.error(f"[ERROR] Get users API failed: {str(e)}")
         handle_error(e, "fetch users")
 
+@router.get("/user/{username}")
+def get_user_details(username: str, credentials: HTTPAuthorizationCredentials = Depends(security)):
+    logger.info(f"[ENTRY] Get user details API called for: {username}")
+    
+    try:
+        client = boto3_client('cognito-idp', region_name=AWS_REGION)
+        
+        response = client.get_user(AccessToken=credentials.credentials)
+        
+        # Only allow users to fetch their own details
+        if response['Username'].lower() != username.lower():
+            raise HTTPException(status_code=403, detail={"error": "ACCESS_DENIED", "message": "Can only access your own details", "code": "USER_403"})
+        
+        def get_attr(attributes, name):
+            return next((attr['Value'] for attr in attributes if attr['Name'] == name), None)
+        
+        user_details = {
+            "username": response['Username'],
+            "email": get_attr(response['UserAttributes'], 'email'),
+            "phone_number": get_attr(response['UserAttributes'], 'phone_number'),
+            "given_name": get_attr(response['UserAttributes'], 'given_name'),
+            "family_name": get_attr(response['UserAttributes'], 'family_name'),
+            "role": get_attr(response['UserAttributes'], 'custom:role') or DEFAULT_ROLE
+        }
+        
+        logger.info(f"[EXIT] Get user details API successful for: {username}")
+        return success_response(user_details, "User details retrieved successfully")
+    except client.exceptions.NotAuthorizedException:
+        logger.error("[ERROR] Invalid or expired token")
+        raise HTTPException(status_code=401, detail={"error": "INVALID_TOKEN", "message": "Invalid or expired token", "code": "USER_401"})
+    except HTTPException as e:
+        raise
+    except Exception as e:
+        logger.error(f"[ERROR] Get user details API failed for {username}: {str(e)}")
+        handle_error(e, "fetch user details")
+
 @router.put("/user/{target_username}/update")
-def update_user(target_username: str, user_update: UserUpdate, user_info: dict = Depends(require_admin)):
+def update_user(target_username: str, user_update: UserUpdate, user_info: dict = Depends(require_user_management)):
     logger.info(f"[ENTRY] Update user API called for: {target_username}")
     USER_POOL_ID, _, _ = get_cognito_config()
     client = boto3_client('cognito-idp', region_name=AWS_REGION)
@@ -343,7 +323,7 @@ def update_user(target_username: str, user_update: UserUpdate, user_info: dict =
         handle_error(e, "update user")
 
 @router.post("/user/{target_username}/enable")
-def enable_user(target_username: str, user_info: dict = Depends(require_admin)):
+def enable_user(target_username: str, user_info: dict = Depends(require_user_management)):
     logger.info(f"[ENTRY] Enable user API called for: {target_username}")
     USER_POOL_ID, _, _ = get_cognito_config()
     client = boto3_client('cognito-idp', region_name=AWS_REGION)
@@ -356,7 +336,7 @@ def enable_user(target_username: str, user_info: dict = Depends(require_admin)):
         handle_error(e, "enable user")
 
 @router.post("/user/{target_username}/disable")
-def disable_user(target_username: str, user_info: dict = Depends(require_admin)):
+def disable_user(target_username: str, user_info: dict = Depends(require_user_management)):
     logger.info(f"[ENTRY] Disable user API called for: {target_username}")
     USER_POOL_ID, _, _ = get_cognito_config()
     client = boto3_client('cognito-idp', region_name=AWS_REGION)
@@ -401,7 +381,7 @@ def create_user(user_data: UserCreate, user_info: dict = Depends(require_admin))
         handle_error(e, "create user")
 
 @router.post("/user/{target_username}/reset-password")
-def reset_password(target_username: str, password_data: PasswordReset, user_info: dict = Depends(require_admin)):
+def reset_password(target_username: str, password_data: PasswordReset, user_info: dict = Depends(require_user_management)):
     logger.info(f"[ENTRY] Reset password API called for: {target_username}")
     USER_POOL_ID, _, _ = get_cognito_config()
     client = boto3_client('cognito-idp', region_name=AWS_REGION)

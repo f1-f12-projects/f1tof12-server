@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel, Field
 from scripts.db.database_factory import get_database
 from auth import require_lead, require_lead_or_recruiter
@@ -9,6 +9,9 @@ from datetime import date, datetime
 from zoneinfo import ZoneInfo
 import boto3
 from scripts.constants import AWS_REGION
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/requirements", tags=["requirements"])
 
@@ -24,9 +27,10 @@ class RequirementCreate(BaseModel):
     status_id: int = Field(1, alias="status")
     req_cust_ref_id: Optional[str] = Field(None, alias="req_cust_ref_id")
     created_date: Optional[datetime] = Field(None, alias="created_date")
+    role: Optional[str] = Field(None, alias="role")
     
     class Config:
-        allow_population_by_field_name = True
+        populate_by_name = True
 
 class RequirementUpdate(BaseModel):
     key_skill: Optional[str] = None
@@ -36,6 +40,7 @@ class RequirementUpdate(BaseModel):
     budget: Optional[float] = None
     expected_billing_date: Optional[date] = None
     req_cust_ref_id: Optional[str] = None
+    role: Optional[str] = None
 
 class RequirementSPOC(BaseModel):
     spoc_id: int
@@ -50,10 +55,14 @@ class RequirementStatusUpdate(BaseModel):
 class RequirementRemarksUpdate(BaseModel):
     remarks: str
 
+class ActivelyWorkingUpdate(BaseModel):
+    actively_working: str
+
 def get_requirement_or_404(requirement_id: int):
     db = get_database()
-    current_req = db.get_requirement(requirement_id)
+    current_req = db.requirement.get_requirement(requirement_id)
     if not current_req:
+        logger.error(f"Requirement not found: {requirement_id}")
         raise HTTPException(status_code=404, detail={"error": "REQUIREMENT_NOT_FOUND", "message": "Requirement not found", "code": "REQ_404"})
     return current_req
 
@@ -64,8 +73,9 @@ def append_remark(old_remarks: str, new_remark: str, username: str) -> str:
 
 def update_requirement_or_404(requirement_id: int, update_data: dict) -> None:
     db = get_database()
-    success = db.update_requirement(requirement_id, update_data)
+    success = db.requirement.update_requirement(requirement_id, update_data)
     if not success:
+        logger.error(f"Failed to update requirement: {requirement_id}")
         raise HTTPException(status_code=404, detail={"error": "REQUIREMENT_NOT_FOUND", "message": "Requirement not found", "code": "REQ_404"})
 
 @router.post("/add")
@@ -78,16 +88,28 @@ def add_requirement(requirement: RequirementCreate, user_info: dict = Depends(re
             requirement_dict['created_date'] = datetime.now(ZoneInfo('Asia/Kolkata'))
         
         # Map experience_level to remarks for database
-        requirement_dict['remarks'] = requirement_dict.pop('experience_level')
+        requirement_dict['remarks'] = append_remark ("", requirement_dict.pop('experience_level'), user_info.get('username', 'unknown'))
         
         # Map status to status_id for database
         if 'status' in requirement_dict:
             requirement_dict['status_id'] = requirement_dict.pop('status')
         
         db = get_database()
-        requirement_data = db.create_requirement(requirement_dict)
+        requirement_data = db.requirement.create_requirement(requirement_dict)
+
+        # Upon success, add record to process_profile table
+        process_profile_data = {
+            "requirement_id": requirement_data['requirement_id'],
+            "recruiter_name": "",
+            "profile_id": 0,
+            "actively_working": "No",
+            "remarks": ""
+        }
+        db.process_profile.create_process_profile(process_profile_data)
+
         return success_response(requirement_data, "Requirement added successfully")
     except HTTPException:
+        logger.error("HTTPException in add requirement")
         raise
     except Exception as e:
         handle_error(e, "add requirement")
@@ -96,7 +118,7 @@ def add_requirement(requirement: RequirementCreate, user_info: dict = Depends(re
 def list_requirements(user_info: dict = Depends(require_lead_or_recruiter)):
     try:
         db = get_database()
-        requirements_data = db.list_requirements()
+        requirements_data = db.requirement.list_requirements()
         return success_response(requirements_data, "Requirements retrieved successfully")
     except Exception as e:
         handle_error(e, "list requirements")
@@ -105,10 +127,75 @@ def list_requirements(user_info: dict = Depends(require_lead_or_recruiter)):
 def get_requirement_statuses(user_info: dict = Depends(require_lead_or_recruiter)):
     try:
         db = get_database()
-        statuses = db.list_requirement_statuses()
+        statuses = db.requirement.list_requirement_statuses()
         return success_response(statuses, "Requirement statuses retrieved successfully")
     except Exception as e:
         handle_error(e, "get requirement statuses")
+
+@router.get("/company/{company_id}/open")
+def get_open_requirements_by_company(company_id: int, user_info: dict = Depends(require_lead_or_recruiter)):
+    try:
+        db = get_database()
+        user_role = user_info.get('role')
+        
+        if user_role in ['recruiter', 'lead']:
+            username = user_info.get('username')
+            if not username:
+                logger.error("Username not found in token for get open requirements by company")
+                raise HTTPException(status_code=401, detail="Username not found in token")
+            requirements_data = db.requirement.get_open_requirements_by_company_and_recruiter(company_id, username)
+        else:
+            requirements_data = db.requirement.get_open_requirements_by_company(company_id)
+        
+        return success_response(requirements_data, "Open requirements retrieved successfully")
+    except Exception as e:
+        handle_error(e, "get open requirements by company")
+
+@router.get("/{requirement_id}/profilecounts")
+def get_profile_counts_by_requirement(requirement_id: int, response: Response, user_info: dict = Depends(require_lead_or_recruiter)):
+    try:
+        db = get_database()
+        user_role = user_info.get('role')
+        
+        if user_role in ['recruiter', 'lead']:
+            username = user_info.get('username')
+            if not username:
+                logger.error("Username not found in token for get profile counts by requirement")
+                raise HTTPException(status_code=401, detail="Username not found in token")
+            profiles_data = db.process_profile.get_profiles_by_requirement_and_recruiter(requirement_id, username)
+        else:
+            profiles_data = db.process_profile.get_profiles_by_requirement(requirement_id)
+        
+        # Count profiles by stage
+        stage_counts = {}
+        for profile in profiles_data:
+            stage = profile.get('stage', 'Unknown')
+            stage_counts[stage] = stage_counts.get(stage, 0) + 1
+        
+        return success_response(stage_counts, "Profile counts by stage retrieved successfully")
+    except Exception as e:
+        handle_error(e, "get profiles by requirement")
+
+@router.get("/{requirement_id}/profiles/{stage}")
+def get_profiles_by_stage(requirement_id: int, stage: str, user_info: dict = Depends(require_lead_or_recruiter)):
+    try:
+        db = get_database()
+        user_role = user_info.get('role')
+        
+        if user_role in ['recruiter', 'lead']:
+            username = user_info.get('username')
+            if not username:
+                raise HTTPException(status_code=401, detail="Username not found in token")
+            profiles_data = db.process_profile.get_profiles_by_requirement_and_recruiter(requirement_id, username)
+        else:
+            profiles_data = db.process_profile.get_profiles_by_requirement(requirement_id)
+        
+        # Filter profiles by stage
+        filtered_profiles = [profile for profile in profiles_data if profile.get('stage') == stage]
+        
+        return success_response(filtered_profiles, f"Profiles for stage '{stage}' retrieved successfully")
+    except Exception as e:
+        handle_error(e, "get profiles by stage")
 
 @router.get("/{requirement_id}")
 def get_requirement(requirement_id: int, user_info: dict = Depends(require_lead_or_recruiter)):
@@ -116,6 +203,7 @@ def get_requirement(requirement_id: int, user_info: dict = Depends(require_lead_
         requirement = get_requirement_or_404(requirement_id)
         return success_response(requirement, "Requirement retrieved successfully")
     except HTTPException:
+        logger.error("HTTPException in get requirement")
         raise
     except Exception as e:
         handle_error(e, "get requirement")
@@ -131,6 +219,7 @@ def update_requirement(requirement_id: int, requirement_update: RequirementUpdat
         update_requirement_or_404(requirement_id, update_data)
         return success_response(message="Requirement updated successfully")
     except HTTPException:
+        logger.error("HTTPException in update requirement")
         raise
     except Exception as e:
         handle_error(e, "update requirement")
@@ -141,48 +230,69 @@ def set_requirement_spoc(requirement_id: int, spoc_data: RequirementSPOC, user_i
         update_requirement_or_404(requirement_id, {"spoc_id": spoc_data.spoc_id})
         return success_response(message="SPOC assigned to requirement successfully")
     except HTTPException:
+        logger.error("HTTPException in set requirement SPOC")
         raise
     except Exception as e:
         handle_error(e, "set requirement SPOC")
 
-@router.put("/{requirement_id}/recruiter")
+@router.put("/{requirement_id}/assign_recruiter")
 def assign_recruiter(requirement_id: int, recruiter_data: RequirementRecruiter, user_info: dict = Depends(require_lead)):
     try:
         from scripts.users.api import get_cognito_config
         USER_POOL_ID, _, _ = get_cognito_config()
-        cognito_client = boto3.client('cognito-idp', region_name=AWS_REGION)
+        cognito_client = boto3.client('cognito-idp', region_name=AWS_REGION)  # type: ignore
         
         try:
-            cognito_client.admin_get_user(
+            response = cognito_client.list_users(
                 UserPoolId=USER_POOL_ID,
-                Username=recruiter_data.recruiter_name
+                Filter=f'username = "{recruiter_data.recruiter_name}"',
+                Limit=1
             )
-        except:
-            raise HTTPException(status_code=400, detail={
-                "error": "RECRUITER_NOT_FOUND",
-                "message": "Recruiter not found in the system",
-                "code": "RCTR_404"
-            })
+            if not response.get('Users'):
+                handle_error(Exception("RECRUITER_NOT_FOUND"), "assign recruiter - recruiter validation")
+        except HTTPException:
+            logger.error("HTTPException in assign recruiter")
+            raise
+        except Exception as e:
+            handle_error(Exception("RECRUITER_NOT_FOUND"), "assign recruiter - cognito check")
         
-        update_requirement_or_404(requirement_id, {"recruiter_name": recruiter_data.recruiter_name})
+        update_requirement_or_404(requirement_id, {"recruiter_name": recruiter_data.recruiter_name, "status_id": 2})
+        # Add new record in process_profiles table with recruiter_name and requirement_id
+        db = get_database()
+        db.process_profile.create_process_profile({
+            "requirement_id": requirement_id,
+            "recruiter_name": recruiter_data.recruiter_name,
+            "actively_working": "Yes"
+        })
+
         return success_response(message="Recruiter assigned to requirement successfully")
     except HTTPException:
+        logger.error("HTTPException in assign recruiter")
         raise
     except Exception as e:
         handle_error(e, "assign recruiter")
+
+@router.get("/{requirement_id}/recruiters")
+def get_requirement_recruiters(requirement_id: int, user_info: dict = Depends(require_lead_or_recruiter)):
+    try:
+        db = get_database()
+        profiles = db.process_profile.get_active_profiles_by_requirement(requirement_id)
+        recruiters = list(set(p.get('recruiter_name') for p in profiles if p.get('recruiter_name', '').strip()))
+        return success_response(recruiters, "Recruiters retrieved successfully")
+    except Exception as e:
+        handle_error(e, "get requirement recruiters")
 
 @router.put("/{requirement_id}/remarks")
 def update_remarks(requirement_id: int, remarks_update: RequirementRemarksUpdate, user_info: dict = Depends(require_lead)):
     try:
         current_req = get_requirement_or_404(requirement_id)
-        
         old_remarks = current_req.get('remarks', '')
         username = user_info.get('username', 'unknown')
         new_remarks = append_remark(old_remarks, remarks_update.remarks, username)
-        
         update_requirement_or_404(requirement_id, {"remarks": new_remarks})
         return success_response(message="Remarks updated successfully")
     except HTTPException:
+        logger.error("HTTPException in update remarks")
         raise
     except Exception as e:
         handle_error(e, "update remarks")
@@ -194,7 +304,7 @@ def update_status_with_remarks(requirement_id: int, status_update: RequirementSt
         
         update_data: Dict[str, Any] = {"status_id": status_update.status_id}
         
-        if status_update.status_id in [9, 10]:
+        if status_update.status_id in [4, 5]:
             update_data["closed_date"] = datetime.now(ZoneInfo('Asia/Kolkata'))
         
         if status_update.remarks:
@@ -205,6 +315,26 @@ def update_status_with_remarks(requirement_id: int, status_update: RequirementSt
         update_requirement_or_404(requirement_id, update_data)
         return success_response(message="Status and remarks updated successfully")
     except HTTPException:
+        logger.error("HTTPException in update status with remarks")
         raise
     except Exception as e:
         handle_error(e, "update status with remarks")
+
+@router.put("/{requirement_id}/{recruiter_name}/actively-working")
+def update_actively_working(requirement_id: int, recruiter_name: str, update_data: ActivelyWorkingUpdate, user_info: dict = Depends(require_lead_or_recruiter)):
+    try:
+        if update_data.actively_working not in ["Yes", "No"]:
+            raise HTTPException(status_code=400, detail="actively_working must be 'Yes' or 'No'")
+        
+        db = get_database()
+        success = db.process_profile.update_actively_working_by_recruiter(requirement_id, recruiter_name, update_data.actively_working)
+        
+        if not success:
+            raise HTTPException(status_code=404, detail="Process profile not found")
+        
+        return success_response(message=f"Actively working status updated to {update_data.actively_working}")
+    except HTTPException:
+        logger.error("HTTPException in update actively working status")
+        raise
+    except Exception as e:
+        handle_error(e, "update actively working status")

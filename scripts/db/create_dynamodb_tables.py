@@ -1,16 +1,24 @@
 import boto3
+import sys
+import os
 from botocore.exceptions import ClientError
-from scripts.db.config import AWS_REGION, USERS_TABLE, COMPANIES_TABLE, SPOCS_TABLE, INVOICES_TABLE, REQUIREMENTS_TABLE, COUNTERS_TABLE, CANDIDATES_TABLE
+
+# Add project root to path
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(project_root)
+
+from scripts.db.config import (  # noqa: E402
+    AWS_REGION, COMPANIES_TABLE, SPOCS_TABLE, INVOICES_TABLE, 
+    REQUIREMENTS_TABLE, REQUIREMENT_STATUSES_TABLE, PROFILE_STATUSES_TABLE, 
+    COUNTERS_TABLE, PROFILES_TABLE, PROCESS_PROFILES_TABLE, 
+    LEAVES_TABLE, LEAVE_BALANCES_TABLE, FINANCIAL_YEARS_TABLE, 
+    HOLIDAYS_TABLE, USER_HOLIDAY_SELECTIONS_TABLE
+)
 
 def create_dynamodb_tables():
     dynamodb = boto3.resource('dynamodb', region_name=AWS_REGION)
     
     tables = [
-        {
-            'name': USERS_TABLE,
-            'key': 'username',
-            'type': 'S'
-        },
         {
             'name': COMPANIES_TABLE,
             'key': 'id',
@@ -32,14 +40,54 @@ def create_dynamodb_tables():
             'type': 'N'
         },
         {
-            'name': CANDIDATES_TABLE,
-            'key': 'candidate_id',
+            'name': PROFILES_TABLE,
+            'key': 'id',
+            'type': 'N'
+        },
+        {
+            'name': REQUIREMENT_STATUSES_TABLE,
+            'key': 'id',
+            'type': 'N'
+        },
+        {
+            'name': PROFILE_STATUSES_TABLE,
+            'key': 'id',
+            'type': 'N'
+        },
+        {
+            'name': PROCESS_PROFILES_TABLE,
+            'key': 'id',
             'type': 'N'
         },
         {
             'name': COUNTERS_TABLE,
             'key': 'table_name',
             'type': 'S'
+        },
+        {
+            'name': LEAVES_TABLE,
+            'key': 'id',
+            'type': 'N'
+        },
+        {
+            'name': LEAVE_BALANCES_TABLE,
+            'key': 'id',
+            'type': 'N'
+        },
+        {
+            'name': FINANCIAL_YEARS_TABLE,
+            'key': 'id',
+            'type': 'N'
+        },
+        {
+            'name': HOLIDAYS_TABLE,
+            'key': 'id',
+            'type': 'N'
+        },
+        {
+            'name': USER_HOLIDAY_SELECTIONS_TABLE,
+            'key': 'id',
+            'type': 'N'
         }
     ]
     

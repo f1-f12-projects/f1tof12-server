@@ -1,0 +1,3 @@
+#!/bin/bash
+# DynamoDB Query Shortcut
+python3 dynamo_query.py "$@"

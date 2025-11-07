@@ -1,10 +1,24 @@
-__version__ = "2.3.0"
-__major_version__ = 2
-__minor_version__ = 3
+__version__ = "4.0.0"
+__major_version__ = 4
+__minor_version__ = 0
 __patch_version__ = 0
 
 # Latest version should be on top
 __changelog__ = {
+    "4.0.0": [
+        "Leave management system implementation"
+    ],
+    "3.1.1": [
+        "Minor version update"
+    ],
+    "3.0.0": [
+        "Enhancements related to Profiles & Requirements"
+    ],
+    "2.4.0": [
+        "Fixed DynamoDBAdapter abstract class implementation by adding missing candidate methods",
+        "Implemented candidate related APIs",
+        "Implemented process profile related APIs"
+    ],
     "2.3.0": [
         "Added requirement statuses from database",
         "Implemented requirement status update API with remarks appending",
