@@ -11,7 +11,8 @@ from scripts.db.config import (  # noqa: E402
     AWS_REGION, COMPANIES_TABLE, SPOCS_TABLE, INVOICES_TABLE, 
     REQUIREMENTS_TABLE, REQUIREMENT_STATUSES_TABLE, PROFILE_STATUSES_TABLE, 
     COUNTERS_TABLE, PROFILES_TABLE, PROCESS_PROFILES_TABLE, 
-    LEAVES_TABLE, LEAVE_BALANCES_TABLE
+    LEAVES_TABLE, LEAVE_BALANCES_TABLE, FINANCIAL_YEARS_TABLE, 
+    HOLIDAYS_TABLE, USER_HOLIDAY_SELECTIONS_TABLE
 )
 
 def create_dynamodb_tables():
@@ -70,6 +71,21 @@ def create_dynamodb_tables():
         },
         {
             'name': LEAVE_BALANCES_TABLE,
+            'key': 'id',
+            'type': 'N'
+        },
+        {
+            'name': FINANCIAL_YEARS_TABLE,
+            'key': 'id',
+            'type': 'N'
+        },
+        {
+            'name': HOLIDAYS_TABLE,
+            'key': 'id',
+            'type': 'N'
+        },
+        {
+            'name': USER_HOLIDAY_SELECTIONS_TABLE,
             'key': 'id',
             'type': 'N'
         }

@@ -31,6 +31,23 @@ python run.py
 - `GET /leaves/all` - View all leaves in system (requires lead or HR role)
 - `PUT /leaves/{leave_id}/approve` - Approve/reject leave (requires lead or HR role)
 
+### Financial Year Management
+- `POST /financial-years` - Create financial year (requires HR role)
+- `GET /financial-years` - Get all financial years (requires HR role)
+- `GET /financial-years/active` - Get active financial year (requires HR role)
+- `PUT /financial-years/{year_id}` - Update financial year (requires HR role)
+- `POST /financial-years/{year_id}/activate` - Activate financial year (requires HR role)
+
+
+### Holiday Management
+- `POST /holidays` - Create holiday (requires HR role)
+- `GET /holidays/year/{financial_year_id}` - Get holidays by year (requires authentication)
+- `GET /holidays/optional/{financial_year_id}` - Get optional holidays (requires authentication)
+- `POST /holidays/select/{financial_year_id}` - Select 2 optional holidays (requires authentication)
+- `GET /holidays/my-holidays/{financial_year_id}` - Get user's holidays (requires authentication)
+- `PUT /holidays/{holiday_id}` - Update holiday (requires HR role)
+- `DELETE /holidays/{holiday_id}` - Delete holiday (requires HR role)
+
 ## Roles
 - **Manager**: Full system access
 - **HR**: User management and leave management
@@ -61,3 +78,5 @@ python run.py
     User        - USER
     Invoice     - INV
     Leave       - LEAVE
+    Financial Year - FY
+    Holiday     - HOL

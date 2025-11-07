@@ -244,12 +244,15 @@ def get_pending_leaves(user_info: dict = Depends(require_hr)):
         pending_leaves = pending_leaves_data
         
         leaves_data = [{
-            "id": leave.id,
-            "username": leave.username,
-            "annual_leave": leave.annual_leave,
-            "sick_leave": leave.sick_leave,
-            "casual_leave": leave.casual_leave,
-            "year": leave.year
+            "id": leave["id"],
+            "username": leave["username"],
+            "leave_type": leave["leave_type"],
+            "start_date": leave["start_date"] if isinstance(leave["start_date"], str) else leave["start_date"].isoformat(),
+            "end_date": leave["end_date"] if isinstance(leave["end_date"], str) else leave["end_date"].isoformat(),
+            "days": leave["days"],
+            "reason": leave["reason"],
+            "status": leave["status"],
+            "created_date": leave["created_date"] if isinstance(leave["created_date"], str) else leave["created_date"].isoformat()
         } for leave in pending_leaves]
         
         return success_response(leaves_data, "Pending leaves retrieved successfully")
@@ -269,17 +272,17 @@ def get_all_leaves(user_info: dict = Depends(require_leave_management)):
         all_leaves = all_leaves_data
         
         leaves_data = [{
-            "id": leave.id,
-            "username": leave.username,
-            "leave_type": leave.leave_type,
-            "start_date": leave.start_date if isinstance(leave.start_date, str) else leave.start_date.isoformat(),
-            "end_date": leave.end_date if isinstance(leave.end_date, str) else leave.end_date.isoformat(),
-            "days": leave.days,
-            "reason": leave.reason,
-            "status": leave.status,
-            "approver_username": getattr(leave, 'approver_username', None),
-            "approver_comments": getattr(leave, 'approver_comments', None),
-            "created_date": leave.created_date if isinstance(leave.created_date, str) else leave.created_date.isoformat()
+            "id": leave["id"],
+            "username": leave["username"],
+            "leave_type": leave["leave_type"],
+            "start_date": leave["start_date"] if isinstance(leave["start_date"], str) else leave["start_date"].isoformat(),
+            "end_date": leave["end_date"] if isinstance(leave["end_date"], str) else leave["end_date"].isoformat(),
+            "days": leave["days"],
+            "reason": leave["reason"],
+            "status": leave["status"],
+            "approver_username": leave.get("approver_username"),
+            "approver_comments": leave.get("approver_comments"),
+            "created_date": leave["created_date"] if isinstance(leave["created_date"], str) else leave["created_date"].isoformat()
         } for leave in all_leaves]
         
         return success_response(leaves_data, "All leaves retrieved successfully")

@@ -115,6 +115,9 @@ class DynamoQuery:
                 # Try to convert to int if it looks like a number
                 if value.isdigit():
                     value = int(value)
+                # Try to convert to boolean if it looks like true/false
+                elif value.lower() in ['true', 'false']:
+                    value = value.lower() == 'true'
                 condition = Attr(key).eq(value)
                 filter_expr = condition if filter_expr is None else filter_expr & condition
             

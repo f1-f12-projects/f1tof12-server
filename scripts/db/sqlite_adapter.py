@@ -6,6 +6,8 @@ from scripts.db.adapters.requirement_adapter import RequirementAdapter
 from scripts.db.adapters.profile_adapter import ProfileAdapter
 from scripts.db.adapters.process_profile_adapter import ProcessProfileAdapter
 from scripts.db.adapters.leave_adapter import LeaveAdapter
+from scripts.db.adapters.financial_year_adapter import FinancialYearAdapter
+from scripts.db.adapters.holiday_adapter import HolidayAdapter
 
 class SQLiteAdapter:
     def __init__(self):
@@ -17,3 +19,5 @@ class SQLiteAdapter:
         self.profile = ProfileAdapter()
         self.process_profile = ProcessProfileAdapter()
         self.leave = LeaveAdapter()
+        self.financial_year = FinancialYearAdapter()
+        self.holiday = HolidayAdapter()

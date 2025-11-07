@@ -1,7 +1,7 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Date, Float
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Date, Float, Boolean
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
-from datetime import datetime, timezone
+from datetime import datetime
 from zoneinfo import ZoneInfo
 
 Base = declarative_base()
@@ -142,3 +142,37 @@ class LeaveBalance(Base):
     year = Column(Integer, default=lambda: datetime.now().year)
     created_date = Column(DateTime, default=lambda: datetime.now(ZoneInfo('Asia/Kolkata')))
     updated_date = Column(DateTime, default=lambda: datetime.now(ZoneInfo('Asia/Kolkata')), onupdate=lambda: datetime.now(ZoneInfo('Asia/Kolkata')))
+
+class FinancialYear(Base):
+    __tablename__ = "financial_years"
+    id = Column(Integer, primary_key=True, index=True)
+    year = Column(Integer, unique=True, index=True)
+    start_date = Column(Date)
+    end_date = Column(Date)
+    is_active = Column(Boolean, default=False)
+    created_date = Column(DateTime, default=lambda: datetime.now(ZoneInfo('Asia/Kolkata')))
+    updated_date = Column(DateTime, default=lambda: datetime.now(ZoneInfo('Asia/Kolkata')), onupdate=lambda: datetime.now(ZoneInfo('Asia/Kolkata')))
+
+class HolidayCalendar(Base):
+    __tablename__ = "holiday_calendar"
+    id = Column(Integer, primary_key=True, index=True)
+    financial_year_id = Column(Integer, ForeignKey("financial_years.id"))
+    name = Column(String)
+    date = Column(Date)
+    is_mandatory = Column(Boolean, default=True)
+    created_date = Column(DateTime, default=lambda: datetime.now(ZoneInfo('Asia/Kolkata')))
+    updated_date = Column(DateTime, default=lambda: datetime.now(ZoneInfo('Asia/Kolkata')), onupdate=lambda: datetime.now(ZoneInfo('Asia/Kolkata')))
+    
+    financial_year = relationship("FinancialYear")
+
+class UserHolidaySelection(Base):
+    __tablename__ = "user_holiday_selections"
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String, index=True)
+    holiday_id = Column(Integer, ForeignKey("holiday_calendar.id"))
+    financial_year_id = Column(Integer, ForeignKey("financial_years.id"))
+    created_date = Column(DateTime, default=lambda: datetime.now(ZoneInfo('Asia/Kolkata')))
+    
+    holiday = relationship("HolidayCalendar")
+    financial_year = relationship("FinancialYear")
+

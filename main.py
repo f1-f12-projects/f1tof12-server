@@ -9,6 +9,8 @@ from scripts.invoices.api import router as invoice_router
 from scripts.requirements.api import router as requirements_router
 from scripts.profiles.api import router as profiles_router
 from scripts.leaves.api import router as leaves_router
+from scripts.financial_year.api import router as financial_year_router
+from scripts.holidays.api import router as holidays_router
 from scripts.utils.cloudfront_middleware import CloudFrontMiddleware
 from version import __version__, __changelog__
 from load_env import load_environment
@@ -36,7 +38,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 # Include routers with customer prefix
 customer_prefix = f"/{os.getenv('CUSTOMER', 'f1tof12')}"
-routers = [customer_router, users_router, spoc_router, invoice_router, requirements_router, profiles_router, leaves_router]
+routers = [customer_router, users_router, spoc_router, invoice_router, requirements_router, profiles_router, leaves_router, financial_year_router, holidays_router]
 for router in routers:
     app.include_router(router, prefix=customer_prefix)
 

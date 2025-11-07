@@ -10,7 +10,7 @@ import boto3
 from scripts.db.config import (
     AWS_REGION, COMPANIES_TABLE, SPOCS_TABLE, INVOICES_TABLE, 
     REQUIREMENTS_TABLE, COUNTERS_TABLE, PROFILES_TABLE, PROCESS_PROFILES_TABLE,
-    LEAVES_TABLE, LEAVE_BALANCES_TABLE
+    LEAVES_TABLE, LEAVE_BALANCES_TABLE, HOLIDAYS_TABLE, USER_HOLIDAY_SELECTIONS_TABLE
 )
 
 def clear_table(dynamodb, table_name, key_name):
@@ -48,7 +48,9 @@ def main():
         PROFILES_TABLE: 'profiles',
         PROCESS_PROFILES_TABLE: 'process_profiles',
         LEAVES_TABLE: 'leaves',
-        LEAVE_BALANCES_TABLE: 'leave_balances'
+        LEAVE_BALANCES_TABLE: 'leave_balances',
+        HOLIDAYS_TABLE: 'holidays',
+        USER_HOLIDAY_SELECTIONS_TABLE: 'user_holiday_selections'
     }
     
     tables = [
@@ -60,6 +62,8 @@ def main():
         (PROCESS_PROFILES_TABLE, 'id'),
         (LEAVES_TABLE, 'id'),
         (LEAVE_BALANCES_TABLE, 'id'),
+        (HOLIDAYS_TABLE, 'id'),
+        (USER_HOLIDAY_SELECTIONS_TABLE, 'id'),
     ]
     
     print("Available tables:")
