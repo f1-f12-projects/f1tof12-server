@@ -1,7 +1,6 @@
 from fastapi import APIRouter, HTTPException, status, Depends
 from pydantic import BaseModel, field_validator
 from boto3 import client as boto3_client
-from os import getenv
 from hmac import new as hmac_new
 from hashlib import sha256
 from base64 import b64encode
@@ -23,23 +22,6 @@ def calculate_secret_hash(username: str, client_id: str, client_secret: str):
     message = username + client_id
     dig = hmac_new(client_secret.encode('utf-8'), message.encode('utf-8'), sha256).digest()
     return b64encode(dig).decode()
-
-def extract_username_from_refresh_token(refresh_token: str):
-    """Extract username from Cognito refresh token"""
-    import json
-    import base64
-    try:
-        # Cognito refresh tokens contain username in payload
-        parts = refresh_token.split('.')
-        if len(parts) >= 2:
-            payload = parts[1]
-            # Add padding if needed
-            payload += '=' * (4 - len(payload) % 4)
-            decoded = json.loads(base64.b64decode(payload))
-            return decoded.get('username', '')
-    except Exception as e:
-        logger.warning(f"Failed to extract username from refresh token: {e}")
-    return ''
 
 def authenticate_with_cognito(username: str, password: str):
     USER_POOL_ID, CLIENT_ID, CLIENT_SECRET = get_cognito_config()
@@ -112,12 +94,20 @@ class Token(BaseModel):
 
 class RefreshToken(BaseModel):
     refresh_token: str
+    username: str
     
     @field_validator('refresh_token')
     @classmethod
     def validate_refresh_token(cls, v):
         if not v or len(v.strip()) == 0:
             raise ValueError('Refresh token cannot be empty')
+        return v.strip()
+    
+    @field_validator('username')
+    @classmethod
+    def validate_username(cls, v):
+        if not v or len(v.strip()) == 0:
+            raise ValueError('Username cannot be empty')
         return v.strip()
 
 class UserUpdate(BaseModel):
@@ -213,14 +203,8 @@ def refresh_token(refresh_data: RefreshToken):
         raise HTTPException(status_code=500, detail="Token is not refreshed. Please check the server configuration.")
     
     try:
-        # Extract username from refresh token
-        username = extract_username_from_refresh_token(refresh_data.refresh_token)
-        if not username:
-            raise HTTPException(status_code=400, detail={
-                "error": "INVALID_REFRESH_TOKEN",
-                "message": "Invalid refresh token format",
-                "code": "INVALID_TOKEN_400"
-            })
+        # Use provided username for SECRET_HASH calculation
+        username = refresh_data.username
         
         response = client.initiate_auth(
             AuthFlow='REFRESH_TOKEN_AUTH',
