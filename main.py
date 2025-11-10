@@ -49,7 +49,7 @@ if os.getenv('ENVIRONMENT') == 'prod':
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://f1tof12.com", "https://www.f1tof12.com"] if os.getenv('ENVIRONMENT') == 'prod' else ["*"],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*", "x-origin", "x-cloudfront-secret"],
