@@ -25,6 +25,22 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(title="F1toF12 API", debug=True)
 
+@app.middleware("http")
+async def add_cache_control(request: Request, call_next):
+    response = await call_next(request)
+    
+    # Add no-cache headers for dynamic API endpoints
+    if request.method == "GET" and request.url.path.startswith(f"/{os.getenv('CUSTOMER', 'f1tof12')}/"):
+        # Skip static endpoints that can be cached
+        static_paths = ["/version", "/health", "/statuses"]
+        if not any(static_path in request.url.path for static_path in static_paths):
+            logger.info(f"Adding no-cache headers to: {request.url.path}")
+            response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+            response.headers["Pragma"] = "no-cache"
+            response.headers["Expires"] = "0"
+    
+    return response
+
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     errors = [
@@ -49,7 +65,7 @@ if os.getenv('ENVIRONMENT') == 'prod':
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["https://f1tof12.com", "https://www.f1tof12.com"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*", "x-origin", "x-cloudfront-secret"],

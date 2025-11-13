@@ -2,6 +2,9 @@ from typing import Optional, List, Dict, Any
 from botocore.exceptions import ClientError
 from scripts.db.config import REQUIREMENTS_TABLE, REQUIREMENT_STATUSES_TABLE
 from .base_dynamodb_adapter import BaseDynamoDBAdapter
+import logging
+
+logger = logging.getLogger(__name__)
 
 class RequirementDynamoDBAdapter(BaseDynamoDBAdapter):
     def __init__(self):
@@ -27,9 +30,10 @@ class RequirementDynamoDBAdapter(BaseDynamoDBAdapter):
     
     def list_requirements(self) -> List[Dict[str, Any]]:
         try:
-            response = self.requirements_table.scan()
+            response = self.requirements_table.scan(ConsistentRead=True)
             return response.get('Items', [])
-        except ClientError:
+        except ClientError as e:
+            logger.error(f"[DB] DynamoDB scan failed: {str(e)}")
             return []
     
     def get_requirement(self, requirement_id: int) -> Optional[Dict[str, Any]]:
@@ -111,7 +115,8 @@ class RequirementDynamoDBAdapter(BaseDynamoDBAdapter):
                     ':status1': Decimal('1'),
                     ':status2': Decimal('2'),
                     ':status3': Decimal('3')
-                }
+                },
+                ConsistentRead=True
             )
             return response.get('Items', [])
         except ClientError:
@@ -143,7 +148,8 @@ class RequirementDynamoDBAdapter(BaseDynamoDBAdapter):
                     ':status1': Decimal('1'),
                     ':status2': Decimal('2'),
                     ':status3': Decimal('3')
-                }
+                },
+                ConsistentRead=True
             )
             
             # Filter by assigned requirement IDs in Python since DynamoDB IN has limitations

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from scripts.db.database_factory import get_database
 from auth import require_lead, require_lead_or_recruiter
@@ -81,6 +81,7 @@ def update_requirement_or_404(requirement_id: int, update_data: dict) -> None:
 @router.post("/add")
 def add_requirement(requirement: RequirementCreate, user_info: dict = Depends(require_lead)):
     try:
+        logger.info(f"[ENTRY] Add requirement API called by: {user_info.get('username', 'unknown')}")
         validate_requirement_fields(requirement)
         requirement_dict = requirement.dict()
         # Set created_date to current IST time if not provided
@@ -106,21 +107,27 @@ def add_requirement(requirement: RequirementCreate, user_info: dict = Depends(re
             "remarks": ""
         }
         db.process_profile.create_process_profile(process_profile_data)
+        logger.info(f"[EXIT] Add requirement API successful - ID: {requirement_data.get('requirement_id')}")
 
         return success_response(requirement_data, "Requirement added successfully")
     except HTTPException:
         logger.error("HTTPException in add requirement")
         raise
     except Exception as e:
+        logger.error(f"[ERROR] Add requirement failed: {str(e)}")
         handle_error(e, "add requirement")
 
 @router.get("/list")
 def list_requirements(user_info: dict = Depends(require_lead_or_recruiter)):
     try:
+        logger.info(f"[ENTRY] List requirements API called by: {user_info.get('username', 'unknown')}")
         db = get_database()
         requirements_data = db.requirement.list_requirements()
+        
+        logger.info(f"[EXIT] List requirements API successful - returned {len(requirements_data)} records")
         return success_response(requirements_data, "Requirements retrieved successfully")
     except Exception as e:
+        logger.error(f"[ERROR] List requirements failed: {str(e)}")
         handle_error(e, "list requirements")
 
 @router.get("/statuses")
@@ -152,7 +159,7 @@ def get_open_requirements_by_company(company_id: int, user_info: dict = Depends(
         handle_error(e, "get open requirements by company")
 
 @router.get("/{requirement_id}/profilecounts")
-def get_profile_counts_by_requirement(requirement_id: int, response: Response, user_info: dict = Depends(require_lead_or_recruiter)):
+def get_profile_counts_by_requirement(requirement_id: int, user_info: dict = Depends(require_lead_or_recruiter)):
     try:
         db = get_database()
         user_role = user_info.get('role')
