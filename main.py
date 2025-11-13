@@ -34,7 +34,6 @@ async def add_cache_control(request: Request, call_next):
         # Skip static endpoints that can be cached
         static_paths = ["/version", "/health", "/statuses"]
         if not any(static_path in request.url.path for static_path in static_paths):
-            logger.info(f"Adding no-cache headers to: {request.url.path}")
             response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
             response.headers["Pragma"] = "no-cache"
             response.headers["Expires"] = "0"
@@ -63,9 +62,13 @@ if os.getenv('ENVIRONMENT') == 'prod':
     app.add_middleware(CloudFrontMiddleware)
 
 # Add CORS middleware
+cors_origins = ["https://f1tof12.com", "https://www.f1tof12.com"]
+if os.getenv('ENVIRONMENT') != 'prod':
+    cors_origins.extend(["http://localhost:3000"])
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://f1tof12.com", "https://www.f1tof12.com"],
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*", "x-origin", "x-cloudfront-secret"],

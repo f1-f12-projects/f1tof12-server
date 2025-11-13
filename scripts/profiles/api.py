@@ -34,6 +34,10 @@ class ProfileCreate(BaseModel):
     notice_period: Optional[str] = None
     status: int = 1
     requirement_id: Optional[int] = None
+    current_employer: str
+    highest_education: str
+    offer_in_hand: Optional[bool] = False
+    variable_pay: Optional[float] = None
 
 class ProfileUpdate(BaseModel):
     name: Optional[str] = None
@@ -50,6 +54,10 @@ class ProfileUpdate(BaseModel):
     remarks: Optional[str] = None
     accepted_offer: Optional[float] = None
     joining_date: Optional[date] = None
+    current_employer: Optional[str] = None
+    highest_education: Optional[str] = None
+    offer_in_hand: Optional[bool] = None
+    variable_pay: Optional[float] = None
 
 class ProcessProfileCreate(BaseModel):
     requirement_id: int
@@ -62,6 +70,7 @@ class DateRangeRequest(BaseModel):
 
 @router.post("/add")
 def add_profile(profile: ProfileCreate, user_info: dict = Depends(require_recruiter)):
+    logger.info(f"Received profile data: {profile}")
     try:
         db = get_database()
         # Extract requirement_id before creating profile
