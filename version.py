@@ -7,6 +7,7 @@ __patch_version__ = 0
 __changelog__ = {
     "4.1.0": [
         "Added new fields to Profile table: current_employer, highest_education, offer_in_hand, variable_pay"
+        "Upload Profile for each candidate"
     ],
     "4.0.0": [
         "Leave management system implementation"
