@@ -8,6 +8,7 @@ class RequirementAdapter(BaseAdapter):
     
     def list_requirements(self) -> List[Dict[str, Any]]:
         with self._db_session() as db:
+            db.expire_all()  # Ensure fresh data from database
             requirements = db.query(Requirement).all()
             return [self._to_dict(req, ['expected_billing_date'], ['created_date', 'closed_date', 'updated_date']) for req in requirements]
     

@@ -1,5 +1,5 @@
 import logging
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from pydantic import BaseModel
 from scripts.db.database_factory import get_database
 from auth import require_recruiter, get_user_info
@@ -34,6 +34,11 @@ class ProfileCreate(BaseModel):
     notice_period: Optional[str] = None
     status: int = 1
     requirement_id: Optional[int] = None
+    current_employer: str
+    highest_education: str
+    offer_in_hand: Optional[bool] = False
+    variable_pay: Optional[float] = None
+    document_url: Optional[str] = None
 
 class ProfileUpdate(BaseModel):
     name: Optional[str] = None
@@ -50,6 +55,10 @@ class ProfileUpdate(BaseModel):
     remarks: Optional[str] = None
     accepted_offer: Optional[float] = None
     joining_date: Optional[date] = None
+    current_employer: Optional[str] = None
+    highest_education: Optional[str] = None
+    offer_in_hand: Optional[bool] = None
+    variable_pay: Optional[float] = None
 
 class ProcessProfileCreate(BaseModel):
     requirement_id: int
@@ -60,28 +69,114 @@ class DateRangeRequest(BaseModel):
     start_date: Optional[str] = None
     end_date: Optional[str] = None
 
+def validate_document(file: UploadFile):
+    """Validate document size and type"""
+    # Check file size (5MB = 5 * 1024 * 1024 bytes)
+    max_size = 5 * 1024 * 1024
+    if file.size > max_size:
+        raise HTTPException(status_code=400, detail="Profile document size must be less than 5MB")
+    
+    # Check file extension
+    allowed_extensions = ['.pdf', '.doc', '.docx']
+    file_extension = file.filename.lower().split('.')[-1] if '.' in file.filename else ''
+    if f'.{file_extension}' not in allowed_extensions:
+        raise HTTPException(status_code=400, detail="Only PDF, DOC, and DOCX profile formats are allowed")
+
+async def upload_document_to_onedrive(file: UploadFile) -> str:
+    """Upload document to OneDrive and return URL"""
+    import os
+    import shutil
+    from onedrive_config import onedrive_client
+    
+    # Validate file first
+    validate_document(file)
+    
+    # Create uploads directory if not exists
+    upload_dir = "uploads/documents"
+    os.makedirs(upload_dir, exist_ok=True)
+    
+    # Save file locally first
+    file_path = f"{upload_dir}/{file.filename}"
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+    
+    try:
+        # Upload to OneDrive
+        onedrive_url = await onedrive_client.upload_file(file_path, file.filename)
+        logger.info(f"File uploaded to OneDrive: {onedrive_url}")
+        # Clean up local file after successful upload
+        os.remove(file_path)
+        return onedrive_url
+    except Exception as e:
+        logger.error(f"OneDrive upload failed: {e}")
+        # Return local path as fallback
+        return file_path
+
 @router.post("/add")
-def add_profile(profile: ProfileCreate, user_info: dict = Depends(require_recruiter)):
+async def add_profile(
+    name: str = Form(...),
+    email: str = Form(...),
+    phone: str = Form(...),
+    skills: str = Form(...),
+    experience_years: int = Form(...),
+    current_location: str = Form(...),
+    preferred_location: str = Form(...),
+    current_employer: str = Form(...),
+    highest_education: str = Form(...),
+    current_ctc: Optional[float] = Form(None),
+    expected_ctc: Optional[float] = Form(None),
+    notice_period: Optional[str] = Form(None),
+    status: int = Form(1),
+    requirement_id: Optional[int] = Form(None),
+    offer_in_hand: Optional[bool] = Form(False),
+    variable_pay: Optional[float] = Form(None),
+    document: Optional[UploadFile] = File(None),
+    user_info: dict = Depends(require_recruiter)
+):
+    # Create ProfileCreate object from form data
+    profile_data = {
+        "name": name,
+        "email": email,
+        "phone": phone,
+        "skills": skills,
+        "experience_years": experience_years,
+        "current_location": current_location,
+        "preferred_location": preferred_location,
+        "current_employer": current_employer,
+        "highest_education": highest_education,
+        "current_ctc": current_ctc,
+        "expected_ctc": expected_ctc,
+        "notice_period": notice_period,
+        "status": status,
+        "offer_in_hand": offer_in_hand,
+        "variable_pay": variable_pay
+    }
+    
+    logger.info(f"Received profile data: {profile_data}")
     try:
         db = get_database()
-        # Extract requirement_id before creating profile
-        requirement_id = profile.requirement_id
-        profile_dict = profile.dict()
-        profile_dict.pop('requirement_id', None)  # Remove requirement_id from profile data
         
-        profile_data = db.profile.create_profile(profile_dict)
+        # Handle document upload if provided
+        if document:
+            document_url = await upload_document_to_onedrive(document)
+            profile_data["document_url"] = document_url
+        
+        # Remove requirement_id from profile data for database insertion
+        profile_dict = {k: v for k, v in profile_data.items() if v is not None}
+        
+        created_profile = db.profile.create_profile(profile_dict)
 
         # If requirement_id is passed, then update process_profile record with profile_id details
         if requirement_id:
             process_profile_data = {
                 "requirement_id": requirement_id,
                 "recruiter_name": user_info.get('username', 'unknown'),
-                "profile_id": profile_data['id'],
+                "profile_id": created_profile['id'],
                 "remarks": "",
                 "actively_working": "Yes"
             }
             db.process_profile.upsert_process_profile(process_profile_data)
-        return success_response(profile_data, "Profile added successfully")
+        return success_response(created_profile, "Profile added successfully")
     except Exception as e:
         handle_error(e, "add profile")
 
@@ -270,6 +365,16 @@ def add_profile_to_requirement(process_profile: ProcessProfileCreate, user_info:
         return success_response(result, "Profile added to requirement successfully")
     except Exception as e:
         handle_error(e, "add profile to requirement")
+
+@router.get("/microsoft-token")
+async def get_microsoft_token(user_info: dict = Depends(require_recruiter)):
+    """Get Microsoft access token"""
+    try:
+        from onedrive_config import token_manager
+        token = await token_manager.get_microsoft_token()
+        return success_response({"access_token": token}, "Token retrieved successfully")
+    except Exception as e:
+        handle_error(e, "get microsoft token")
 
 
 

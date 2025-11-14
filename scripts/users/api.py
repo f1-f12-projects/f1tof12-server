@@ -1,7 +1,6 @@
 from fastapi import APIRouter, HTTPException, status, Depends
 from pydantic import BaseModel, field_validator
 from boto3 import client as boto3_client
-from os import getenv
 from hmac import new as hmac_new
 from hashlib import sha256
 from base64 import b64encode
@@ -95,6 +94,21 @@ class Token(BaseModel):
 
 class RefreshToken(BaseModel):
     refresh_token: str
+    username: str
+    
+    @field_validator('refresh_token')
+    @classmethod
+    def validate_refresh_token(cls, v):
+        if not v or len(v.strip()) == 0:
+            raise ValueError('Refresh token cannot be empty')
+        return v.strip()
+    
+    @field_validator('username')
+    @classmethod
+    def validate_username(cls, v):
+        if not v or len(v.strip()) == 0:
+            raise ValueError('Username cannot be empty')
+        return v.strip()
 
 class UserUpdate(BaseModel):
     email: Optional[str] = None
@@ -153,15 +167,23 @@ def login(user: UserLogin):
                 if attr['Name'] == 'custom:role':
                     role = attr['Value']
                     break
+
         except Exception:
             role = DEFAULT_ROLE
+        
+        # Calculate expiry time
+        from datetime import datetime, timedelta
+        expires_in_seconds = auth_result.get('ExpiresIn', 3600)  # Default 1 hour
+        expiry_time = datetime.utcnow() + timedelta(seconds=expires_in_seconds)
         
         logger.info(f"[EXIT] Login API successful for username: {user.username}")
         return success_response({
             "access_token": auth_result['AccessToken'],
             "refresh_token": auth_result['RefreshToken'],
             "token_type": "bearer",
-            "role": role
+            "role": role,
+            "expires_in": expires_in_seconds,
+            "expires_at": expiry_time.isoformat() + "Z"
         }, "Login successful")
     except HTTPException as e:
         logger.error(f"[ERROR] Login API failed for {user.username}: {e.detail}")
@@ -181,19 +203,30 @@ def refresh_token(refresh_data: RefreshToken):
         raise HTTPException(status_code=500, detail="Token is not refreshed. Please check the server configuration.")
     
     try:
+        # Use provided username for SECRET_HASH calculation
+        username = refresh_data.username
+        
         response = client.initiate_auth(
             AuthFlow='REFRESH_TOKEN_AUTH',
             AuthParameters={
                 'REFRESH_TOKEN': refresh_data.refresh_token,
-                'SECRET_HASH': calculate_secret_hash('', CLIENT_ID, CLIENT_SECRET)
+                'SECRET_HASH': calculate_secret_hash(username, CLIENT_ID, CLIENT_SECRET)
             },
             ClientId=CLIENT_ID
         )
-
+        
+        # Calculate expiry time
+        from datetime import datetime, timedelta
+        expires_in_seconds = response['AuthenticationResult'].get('ExpiresIn', 3600)
+        expiry_time = datetime.utcnow() + timedelta(seconds=expires_in_seconds)
+        
+        logger.info("Token refresh successful - response received from Cognito")
         logger.info("[EXIT] Refresh token API successful")
         return success_response({
             "access_token": response['AuthenticationResult']['AccessToken'],
-            "token_type": "bearer"
+            "token_type": "bearer",
+            "expires_in": expires_in_seconds,
+            "expires_at": expiry_time.isoformat() + "Z"
         }, "Token refreshed successfully")
     except Exception as e:
         logger.error(f"[ERROR] Refresh token API failed: {str(e)}")

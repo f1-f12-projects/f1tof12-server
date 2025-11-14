@@ -87,6 +87,11 @@ class Profile(Base):
     remarks = Column(String)
     accepted_offer = Column(Float)
     joining_date = Column(Date)
+    current_employer = Column(String)
+    highest_education = Column(String)
+    offer_in_hand = Column(Boolean, default=False)
+    variable_pay = Column(Float)
+    document_url = Column(String)
     created_date = Column(DateTime, default=lambda: datetime.now(ZoneInfo('Asia/Kolkata')))
     updated_date = Column(DateTime, default=lambda: datetime.now(ZoneInfo('Asia/Kolkata')), onupdate=lambda: datetime.now(ZoneInfo('Asia/Kolkata')))
 
