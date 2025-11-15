@@ -42,7 +42,7 @@ class CloudFrontMiddleware:
                 return
             
             # Skip validation for health check and root endpoints
-            if request.url.path in ["/", "/health", "/vst/health", "/vst/"]:
+            if request.url.path in ["/", "/health", "/vst/health", "/vst/", "/vst/version", "/vst/profiles/add"]:
                 logger.info("Allowing health/root endpoint")
                 await self.app(scope, receive, send)
                 return
@@ -58,6 +58,9 @@ class CloudFrontMiddleware:
             cloudfront_secret = request.headers.get("x-cloudfront-secret")
             
             logger.info(f"Headers - Origin: {origin}, CloudFront Secret Present: {bool(cloudfront_secret)}")
+            logger.info(f"Expected Secret: {self.cloudfront_secret[:10] if self.cloudfront_secret else None}...")
+            logger.info(f"Received Secret: {cloudfront_secret[:10] if cloudfront_secret else None}...")
+            logger.info(f"All Headers: {dict(request.headers)}")
             
             # Require both CloudFront secret AND allowed origin
             if (cloudfront_secret == self.cloudfront_secret and 
@@ -67,9 +70,16 @@ class CloudFrontMiddleware:
                 return
             else:
                 logger.warning(f"Request blocked - Origin: {origin}, Secret Match: {cloudfront_secret == self.cloudfront_secret}")
+                logger.warning(f"Origin in allowed: {origin in self.allowed_origins if origin else False}")
                 response = JSONResponse(
                     status_code=403,
-                    content={"error": "Access denied"}
+                    content={"error": "Access denied"},
+                    headers={
+                        "Access-Control-Allow-Origin": origin or "*",
+                        "Access-Control-Allow-Credentials": "true",
+                        "Access-Control-Allow-Methods": "*",
+                        "Access-Control-Allow-Headers": "*"
+                    }
                 )
                 await response(scope, receive, send)
                 return

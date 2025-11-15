@@ -71,10 +71,12 @@ class DateRangeRequest(BaseModel):
 
 def validate_document(file: UploadFile):
     """Validate document size and type"""
-    # Check file size (5MB = 5 * 1024 * 1024 bytes)
-    max_size = 5 * 1024 * 1024
-    if file.size > max_size:
-        raise HTTPException(status_code=400, detail="Profile document size must be less than 5MB")
+    import os
+    # Lambda has 6MB request limit, keep file size smaller
+    max_size = 3 * 1024 * 1024 if os.getenv('AWS_LAMBDA_FUNCTION_NAME') else 5 * 1024 * 1024
+    if file.size and file.size > max_size:
+        size_limit = "3MB" if os.getenv('AWS_LAMBDA_FUNCTION_NAME') else "5MB"
+        raise HTTPException(status_code=400, detail=f"Profile document size must be less than {size_limit}")
     
     # Check file extension
     allowed_extensions = ['.pdf', '.doc', '.docx']
@@ -91,26 +93,27 @@ async def upload_document_to_onedrive(file: UploadFile) -> str:
     # Validate file first
     validate_document(file)
     
-    # Create uploads directory if not exists
-    upload_dir = "uploads/documents"
+    # Use /tmp for Lambda compatibility
+    upload_dir = "/tmp/documents" if os.getenv('AWS_LAMBDA_FUNCTION_NAME') else "uploads/documents"
     os.makedirs(upload_dir, exist_ok=True)
     
     # Save file locally first
     file_path = f"{upload_dir}/{file.filename}"
-    with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-    
     try:
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        
         # Upload to OneDrive
         onedrive_url = await onedrive_client.upload_file(file_path, file.filename)
         logger.info(f"File uploaded to OneDrive: {onedrive_url}")
-        # Clean up local file after successful upload
-        os.remove(file_path)
         return onedrive_url
     except Exception as e:
         logger.error(f"OneDrive upload failed: {e}")
-        # Return local path as fallback
-        return file_path
+        raise HTTPException(status_code=500, detail="File upload failed")
+    finally:
+        # Always clean up local file
+        if os.path.exists(file_path):
+            os.remove(file_path)
 
 @router.post("/add")
 async def add_profile(
@@ -133,6 +136,8 @@ async def add_profile(
     document: Optional[UploadFile] = File(None),
     user_info: dict = Depends(require_recruiter)
 ):
+    logger.info(f"POST /profiles/add called with user: {user_info.get('username', 'unknown')}")
+    logger.info(f"Document received: {document.filename if document else 'None'}")
     # Create ProfileCreate object from form data
     profile_data = {
         "name": name,
