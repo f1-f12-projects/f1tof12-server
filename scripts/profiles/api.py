@@ -73,9 +73,9 @@ def validate_document(file: UploadFile):
     """Validate document size and type"""
     import os
     # Lambda has 6MB request limit, keep file size much smaller
-    max_size = 1 * 1024 * 1024 if os.getenv('AWS_LAMBDA_FUNCTION_NAME') else 5 * 1024 * 1024
+    max_size = 5 * 1024 * 1024 if os.getenv('AWS_LAMBDA_FUNCTION_NAME') else 5 * 1024 * 1024
     if file.size and file.size > max_size:
-        size_limit = "3MB" if os.getenv('AWS_LAMBDA_FUNCTION_NAME') else "5MB"
+        size_limit = "5MB"
         raise HTTPException(status_code=400, detail=f"Profile document size must be less than {size_limit}")
     
     # Check file extension
@@ -159,8 +159,10 @@ async def add_profile(
     try:
         db = get_database()
 
-        document_url = await upload_document_to_onedrive(document)
-        profile_data["document_url"] = document_url
+        # Only upload document if one is provided
+        if document:
+            document_url = await upload_document_to_onedrive(document)
+            profile_data["document_url"] = document_url
         
         # Remove requirement_id from profile data for database insertion
         profile_dict = {k: v for k, v in profile_data.items() if v is not None}
