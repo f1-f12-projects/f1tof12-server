@@ -26,7 +26,6 @@ class MicrosoftTokenManager:
         """Get parameter from SSM"""
         try:
             response = self.ssm.get_parameter(Name=param_name, WithDecryption=True)
-            logger.info(f"SSM parameter {param_name} retrieved successfully.")
             return response['Parameter']['Value']
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Failed to get SSM parameter {param_name}: {str(e)}")
@@ -54,13 +53,11 @@ class MicrosoftTokenManager:
             client_id = os.getenv('ONEDRIVE_CLIENT_ID')
             client_secret = os.getenv('ONEDRIVE_CLIENT_SECRET')
             self.drive_id = os.getenv('ONEDRIVE_DRIVE_ID')
-            self.folder_path = os.getenv('ONEDRIVE_FOLDER_PATH', 'documents/profiles')
         else:
             self.tenant_id = self._get_ssm_parameter(f'{self.path_prefix}/onedrive/tenant_id')
             client_id = self._get_ssm_parameter(f'{self.path_prefix}/onedrive/client-id')
             client_secret = self._get_ssm_parameter(f'{self.path_prefix}/onedrive/client-secret')
             self.drive_id = self._get_ssm_parameter(f'{self.path_prefix}/onedrive/drive-id')
-            self.folder_path = self._get_ssm_parameter(f'{self.path_prefix}/onedrive/folder-path')
             logger.info("Retrieved OneDrive configuration from SSM.")
         
         self.folder_path = 'documents/profiles' + self.path_prefix

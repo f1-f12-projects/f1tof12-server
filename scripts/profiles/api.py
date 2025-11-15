@@ -72,8 +72,8 @@ class DateRangeRequest(BaseModel):
 def validate_document(file: UploadFile):
     """Validate document size and type"""
     import os
-    # Lambda has 6MB request limit, keep file size smaller
-    max_size = 3 * 1024 * 1024 if os.getenv('AWS_LAMBDA_FUNCTION_NAME') else 5 * 1024 * 1024
+    # Lambda has 6MB request limit, keep file size much smaller
+    max_size = 1 * 1024 * 1024 if os.getenv('AWS_LAMBDA_FUNCTION_NAME') else 5 * 1024 * 1024
     if file.size and file.size > max_size:
         size_limit = "3MB" if os.getenv('AWS_LAMBDA_FUNCTION_NAME') else "5MB"
         raise HTTPException(status_code=400, detail=f"Profile document size must be less than {size_limit}")
@@ -136,8 +136,6 @@ async def add_profile(
     document: Optional[UploadFile] = File(None),
     user_info: dict = Depends(require_recruiter)
 ):
-    logger.info(f"POST /profiles/add called with user: {user_info.get('username', 'unknown')}")
-    logger.info(f"Document received: {document.filename if document else 'None'}")
     # Create ProfileCreate object from form data
     profile_data = {
         "name": name,
@@ -160,11 +158,9 @@ async def add_profile(
     logger.info(f"Received profile data: {profile_data}")
     try:
         db = get_database()
-        
-        # Handle document upload if provided
-        if document:
-            document_url = await upload_document_to_onedrive(document)
-            profile_data["document_url"] = document_url
+
+        document_url = await upload_document_to_onedrive(document)
+        profile_data["document_url"] = document_url
         
         # Remove requirement_id from profile data for database insertion
         profile_dict = {k: v for k, v in profile_data.items() if v is not None}
