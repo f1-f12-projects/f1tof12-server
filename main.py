@@ -63,7 +63,9 @@ if os.getenv('ENVIRONMENT') == 'prod':
 
 # Add CORS middleware
 cors_origins = ["https://f1tof12.com", "https://www.f1tof12.com"]
-if os.getenv('ENVIRONMENT') != 'prod':
+if os.getenv('ENVIRONMENT') == 'dev':
+    cors_origins.extend(["http://localhost:3000", "https://dev.f1tof12.com", "https://dev-api.f1tof12.com"])
+elif os.getenv('ENVIRONMENT') != 'prod':
     cors_origins.extend(["http://localhost:3000"])
 
 app.add_middleware(
