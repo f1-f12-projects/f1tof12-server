@@ -1,7 +1,10 @@
+import logging
 from typing import Dict, Any
 from botocore.exceptions import ClientError
 from scripts.db.config import PROCESS_PROFILES_TABLE, PROFILES_TABLE, PROFILE_STATUSES_TABLE
 from .base_dynamodb_adapter import BaseDynamoDBAdapter
+
+logger = logging.getLogger(__name__)
 
 class ProcessProfileDynamoDBAdapter(BaseDynamoDBAdapter):
     def __init__(self):
@@ -160,6 +163,7 @@ class ProcessProfileDynamoDBAdapter(BaseDynamoDBAdapter):
     
     def update_actively_working_by_recruiter(self, requirement_id: int, recruiter_name: str, actively_working: str) -> bool:
         try:
+            logger.info(f"Updating actively_working for requirement_id={requirement_id}, recruiter_name={recruiter_name}, value={actively_working}")
             from decimal import Decimal
             response = self.process_profiles_table.scan(
                 FilterExpression='requirement_id = :req_id AND recruiter_name = :recruiter',
@@ -168,6 +172,8 @@ class ProcessProfileDynamoDBAdapter(BaseDynamoDBAdapter):
                     ':recruiter': recruiter_name
                 }
             )
+
+            logger.info(f"Found {len(response.get('Items', []))} items")
             
             if response.get('Items'):
                 item = response['Items'][0]
@@ -176,7 +182,8 @@ class ProcessProfileDynamoDBAdapter(BaseDynamoDBAdapter):
                 )
                 return True
             return False
-        except ClientError:
+        except ClientError as e:
+            logger.error(f"Error updating actively_working: {e}")
             return False
     
     def update_process_profile_recruiter(self, requirement_id: int, recruiter_name: str) -> bool:

@@ -8,7 +8,9 @@
                 "lambda:*",
                 "iam:PassRole",
                 "cloudformation:*",
-                "s3:*"
+                "s3:*",
+                "cognito-idp:*",
+                "dynamodb:*"
             ],
             "Resource": "*"
         }

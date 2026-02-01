@@ -1,10 +1,14 @@
 __version__ = "4.1.0"
 __major_version__ = 4
 __minor_version__ = 1
-__patch_version__ = 0
+__patch_version__ = 1
 
 # Latest version should be on top
 __changelog__ = {
+    "4.1.1": [
+        "Created new AWS user group to allow Developers",
+        "When un-assigning recruiter from a requirement, check if any profiles assigned to him."
+    ],
     "4.1.0": [
         "Added new fields to Profile table: current_employer, highest_education, offer_in_hand, variable_pay"
         "Upload Profile for each candidate"

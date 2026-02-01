@@ -333,6 +333,8 @@ def update_actively_working(requirement_id: int, recruiter_name: str, update_dat
         if update_data.actively_working not in ["Yes", "No"]:
             raise HTTPException(status_code=400, detail="actively_working must be 'Yes' or 'No'")
         
+        logger.info (f"Updating actively_working for requirement_id={requirement_id}, recruiter_name={recruiter_name}, value={update_data.actively_working}")
+        
         db = get_database()
         success = db.process_profile.update_actively_working_by_recruiter(requirement_id, recruiter_name, update_data.actively_working)
         
@@ -340,8 +342,8 @@ def update_actively_working(requirement_id: int, recruiter_name: str, update_dat
             raise HTTPException(status_code=404, detail="Process profile not found")
         
         return success_response(message=f"Actively working status updated to {update_data.actively_working}")
-    except HTTPException:
-        logger.error("HTTPException in update actively working status")
+    except HTTPException as e:
+        handle_error(e, "HTTPException in update actively working status")
         raise
     except Exception as e:
         handle_error(e, "update actively working status")
