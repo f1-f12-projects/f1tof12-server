@@ -12,14 +12,18 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v3
 
+    - name: Get version
+      id: version
+      run: echo "VERSION=$(python -c 'import version; print(version.__version__)')" >> $GITHUB_OUTPUT
+
     - name: Package Lambda
       run: |
         pip install -r requirements.txt -t .
-        zip -r lambda-deployment.zip .
+        zip -r f1tof12-api-prod-${{ steps.version.outputs.VERSION }}.zip .
 
     - name: Upload to S3
       run: |
-        aws s3 cp lambda-deployment.zip s3://${{ secrets.PROD_S3_BUCKET }}/lambda-deployment.zip
+        aws s3 cp f1tof12-api-prod-${{ steps.version.outputs.VERSION }}.zip s3://${{ secrets.PROD_S3_BUCKET }}/f1tof12-api-prod-${{ steps.version.outputs.VERSION }}.zip
       env:
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -27,7 +31,7 @@ jobs:
 
     - name: Update Lambda
       run: |
-        aws lambda update-function-code --function-name ${{ secrets.PROD_LAMBDA_FUNCTION }} --s3-bucket ${{ secrets.PROD_S3_BUCKET }} --s3-key lambda-deployment.zip
+        aws lambda update-function-code --function-name ${{ secrets.PROD_LAMBDA_FUNCTION }} --s3-bucket ${{ secrets.PROD_S3_BUCKET }} --s3-key f1tof12-api-prod-${{ steps.version.outputs.VERSION }}.zip
       env:
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
