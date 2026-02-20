@@ -9,7 +9,8 @@ __changelog__ = {
         "Created GitHub Actions for deployment.",
         "Updated README",
         "Fixed S3 bucket name",
-        "Add invalidation"
+        "Add invalidation",
+        "Added version number to the deployed folder"
     ],
     "4.1.1": [
         "Created new AWS user group to allow Developers",
