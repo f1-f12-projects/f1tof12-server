@@ -7,6 +7,7 @@ __patch_version__ = 4
 __changelog__ = {
     "4.1.4": [
         "Created GitHub Actions for deployment.",
+        "Updated README"
     ],
     "4.1.1": [
         "Created new AWS user group to allow Developers",

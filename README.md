@@ -6,6 +6,64 @@ pip install -r requirements.txt
 python run.py
 ```
 
+## Deployment
+
+### Automated Deployment via GitHub Actions
+
+The application automatically deploys to AWS Lambda when code is pushed to specific branches:
+
+- **Dev Environment**: Push to `dev` branch → Deploys to Dev Lambda
+- **Production Environment**: Push to `main` branch → Deploys to Prod Lambda
+
+### How It Works
+
+1. **Code Push**: Developer pushes code to `dev` or `main` branch
+2. **GitHub Actions Trigger**: Workflow automatically starts
+3. **Package**: Installs dependencies and creates deployment zip
+4. **Upload to S3**: Uploads zip file to respective S3 bucket
+5. **Update Lambda**: Updates Lambda function with new code from S3
+6. **Live**: Changes are immediately live
+
+### Setup Instructions
+
+#### 1. AWS IAM User Setup
+Create/use IAM user `f1tof12-github-deployment` with policies:
+- `AmazonS3FullAccess`
+- `AWSLambda_FullAccess` (or custom policy with `lambda:UpdateFunctionCode`)
+- `AmazonSSMReadOnlyAccess`
+- `CloudFrontFullAccess`
+
+Generate access keys for this user.
+
+#### 2. GitHub Repository Secrets
+Go to Repository Settings → Secrets and variables → Actions → New repository secret:
+- `AWS_ACCESS_KEY_ID`: IAM user access key
+- `AWS_SECRET_ACCESS_KEY`: IAM user secret key
+- `AWS_REGION`: AWS region (e.g., `us-east-1`)
+
+#### 3. GitHub Environment Secrets
+Create two environments and add secrets:
+
+**Dev Environment** (Settings → Environments → New environment: `dev`):
+- `DEV_S3_BUCKET`: Dev S3 bucket name
+- `DEV_LAMBDA_FUNCTION`: Dev Lambda function name
+
+**Production Environment** (Settings → Environments → New environment: `production`):
+- `PROD_S3_BUCKET`: Production S3 bucket name
+- `PROD_LAMBDA_FUNCTION`: Production Lambda function name
+
+#### 4. Deploy
+Push code to trigger deployment:
+```bash
+git add .
+git commit -m "Your changes"``
+git push origin dev        # Deploys to dev
+git push origin main       # Deploys to production
+```
+
+### Monitoring Deployments
+View deployment status: Repository → Actions tab
+
 ## API Endpoints
 
 ### Authentication
@@ -55,7 +113,7 @@ python run.py
 - **Finance**: Financial operations
 - **Recruiter**: Basic operations (default role)
 
-## Usage
+## API Usage
 1. Register: `POST /register` with `{"username": "test", "password": "test123"}`
 2. Login: `POST /login` with same credentials to get token
 3. Use token in Authorization header: `Bearer <token>`
