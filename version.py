@@ -1,11 +1,11 @@
-__version__ = "4.1.2"
+__version__ = "4.1.4"
 __major_version__ = 4
 __minor_version__ = 1
-__patch_version__ = 2
+__patch_version__ = 4
 
 # Latest version should be on top
 __changelog__ = {
-    "4.1.2": [
+    "4.1.4": [
         "Created GitHub Actions for deployment.",
     ],
     "4.1.1": [
