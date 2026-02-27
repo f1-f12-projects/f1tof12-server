@@ -17,6 +17,10 @@ pip-delete-this-directory.txt
 .aws-sam/
 template*.yaml
 template*.yml
+*-deploy.sh
+iam-policy.json
+developer-iam-policy.json
+import-resources.json
 
 # Node modules
 node_modules/
