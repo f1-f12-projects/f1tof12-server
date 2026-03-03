@@ -9,8 +9,8 @@ def get_cognito_config():
     """Get Cognito configuration from environment or SSM Parameter Store"""
     from scripts.constants import ENVIRONMENT
     
-    # Use environment variables in dev, SSM in production
-    if ENVIRONMENT == 'dev':
+    # Use environment variables in local, SSM in dev/production
+    if ENVIRONMENT == 'local':
         user_pool_id = getenv('COGNITO_USER_POOL_ID')
         client_id = getenv('COGNITO_CLIENT_ID')
         client_secret = getenv('COGNITO_CLIENT_SECRET')
