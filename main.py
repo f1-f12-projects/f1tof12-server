@@ -23,7 +23,7 @@ load_environment()
 logging.getLogger().setLevel(logging.INFO)
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="F1toF12 API", debug=True)
+app = FastAPI(title="F1toF12 API", debug=os.getenv('ENVIRONMENT') == 'dev')
 
 @app.middleware("http")
 async def add_cache_control(request: Request, call_next):
@@ -72,8 +72,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=cors_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*", "x-origin", "x-cloudfront-secret"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "x-origin", "x-cloudfront-secret"],
     expose_headers=["X-CloudFront-Secret"],
 )
 

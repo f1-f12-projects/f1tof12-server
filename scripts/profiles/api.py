@@ -73,7 +73,7 @@ def validate_document(file: UploadFile):
     """Validate document size and type"""
     import os
     # Lambda has 6MB request limit, keep file size much smaller
-    max_size = 5 * 1024 * 1024 if os.getenv('AWS_LAMBDA_FUNCTION_NAME') else 5 * 1024 * 1024
+    max_size = 5 * 1024 * 1024 if os.getenv('AWS_LAMBDA_FUNCTION_NAME') else 10 * 1024 * 1024
     if file.size and file.size > max_size:
         size_limit = "5MB"
         raise HTTPException(status_code=400, detail=f"Profile document size must be less than {size_limit}")
@@ -368,16 +368,6 @@ def add_profile_to_requirement(process_profile: ProcessProfileCreate, user_info:
         return success_response(result, "Profile added to requirement successfully")
     except Exception as e:
         handle_error(e, "add profile to requirement")
-
-@router.get("/microsoft-token")
-async def get_microsoft_token(user_info: dict = Depends(require_recruiter)):
-    """Get Microsoft access token"""
-    try:
-        from onedrive_config import token_manager
-        token = await token_manager.get_microsoft_token()
-        return success_response({"access_token": token}, "Token retrieved successfully")
-    except Exception as e:
-        handle_error(e, "get microsoft token")
 
 
 
