@@ -1,4 +1,5 @@
 import logging
+import uuid
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from pydantic import BaseModel
 from scripts.db.database_factory import get_database
@@ -69,7 +70,7 @@ class DateRangeRequest(BaseModel):
     start_date: Optional[str] = None
     end_date: Optional[str] = None
 
-def validate_document(file: UploadFile):
+async def validate_document(file: UploadFile):
     """Validate document size and type"""
     import os
     # Lambda has 6MB request limit, keep file size much smaller
@@ -84,6 +85,21 @@ def validate_document(file: UploadFile):
     if f'.{file_extension}' not in allowed_extensions:
         raise HTTPException(status_code=400, detail="Only PDF, DOC, and DOCX profile formats are allowed")
 
+    # Verify actual file content via magic bytes — extension alone can be spoofed
+    header = await file.read(8)
+    await file.seek(0)
+    magic_map = {
+        b'%PDF':         ['.pdf'],
+        b'\xd0\xcf\x11\xe0': ['.doc'],
+        b'PK\x03\x04':  ['.docx'],
+    }
+    matched = any(
+        header.startswith(sig) and f'.{file_extension}' in exts
+        for sig, exts in magic_map.items()
+    )
+    if not matched:
+        raise HTTPException(status_code=400, detail="File content does not match the declared file type")
+
 async def upload_document_to_onedrive(file: UploadFile) -> str:
     """Upload document to OneDrive and return URL"""
     import os
@@ -91,14 +107,16 @@ async def upload_document_to_onedrive(file: UploadFile) -> str:
     from onedrive_config import onedrive_client
     
     # Validate file first
-    validate_document(file)
+    await validate_document(file)
     
     # Use /tmp for Lambda compatibility
     upload_dir = "/tmp/documents" if os.getenv('AWS_LAMBDA_FUNCTION_NAME') else "uploads/documents"
     os.makedirs(upload_dir, exist_ok=True)
     
     # Save file locally first
-    file_path = f"{upload_dir}/{file.filename}"
+    safe_ext = os.path.splitext(os.path.basename(file.filename))[-1]
+    safe_filename = f"{uuid.uuid4()}{safe_ext}"
+    file_path = os.path.join(upload_dir, safe_filename)
     try:
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
@@ -155,7 +173,7 @@ async def add_profile(
         "variable_pay": variable_pay
     }
     
-    logger.info(f"Received profile data: {profile_data}")
+    logger.info(f"Received profile data: skills={profile_data.get('skills')}, experience_years={profile_data.get('experience_years')}, status={profile_data.get('status')}, requirement_id={profile_data.get('requirement_id')}")
     try:
         db = get_database()
 

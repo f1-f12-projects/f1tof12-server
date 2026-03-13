@@ -65,7 +65,7 @@ class MicrosoftTokenManager:
 
         # Request new token
         url = f"https://login.microsoftonline.com/{self.tenant_id}/oauth2/v2.0/token"
-        logger.info(f"Requesting token from URL: {url}")
+        logger.info("Requesting token from Azure AD.")
         data = {
             'grant_type': 'client_credentials',
             'client_id': client_id,
@@ -77,7 +77,8 @@ class MicrosoftTokenManager:
             response = await client.post(url, data=data)
             
         if response.status_code != 200:
-            raise HTTPException(status_code=500, detail=f"Failed to get Microsoft token: {response.text}")
+            logger.error(f"Failed to get Microsoft token: status={response.status_code}")
+            raise HTTPException(status_code=500, detail="Failed to get Microsoft token")
         
         token_data = response.json()
         self._cached_token = token_data['access_token']
