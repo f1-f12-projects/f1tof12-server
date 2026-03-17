@@ -1,10 +1,15 @@
-__version__ = "4.1.5"
+__version__ = "4.1.6"
 __major_version__ = 4
 __minor_version__ = 1
-__patch_version__ = 5
+__patch_version__ = 6
 
 # Latest version should be on top
 __changelog__ = {
+    "4.1.6": [
+        "Added invoice list by date range API with date validation",
+        "Fixed invoice update returning 404 due to trailing comma in DynamoDB UpdateExpression",
+        "Fixed DynamoDB reserved word conflict for 'status' field using ExpressionAttributeNames"
+    ],
     "4.1.5": [
         "Fixed security scan issues"
     ],

@@ -18,3 +18,11 @@ class InvoiceAdapter(BaseAdapter):
     
     def update_invoice(self, invoice_id: int, update_data: Dict[str, Any]) -> bool:
         return self._update_record(Invoice, invoice_id, update_data)
+
+    def list_invoices_by_date_range(self, from_date, to_date) -> List[Dict[str, Any]]:
+        with self._db_session() as db:
+            invoices = db.query(Invoice).filter(
+                Invoice.raised_date >= from_date,
+                Invoice.raised_date <= to_date
+            ).all()
+            return [self._to_dict(invoice, ['raised_date', 'due_date']) for invoice in invoices]

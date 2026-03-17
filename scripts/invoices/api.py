@@ -64,6 +64,23 @@ def get_invoices(user_info: dict = Depends(require_finance_or_manager)):
     except Exception as e:
         handle_error(e, "get invoices")
 
+@router.get("/list/by-date-range")
+def get_invoices_by_date_range(from_date: date, to_date: date, user_info: dict = Depends(require_finance_or_manager)):
+    if from_date > to_date:
+        raise HTTPException(status_code=400, detail={
+            "error": "INVALID_DATE_RANGE",
+            "message": "from_date must be before or equal to to_date",
+            "code": "INV_400"
+        })
+    try:
+        db = get_database()
+        invoices_data = db.invoice.list_invoices_by_date_range(from_date, to_date)
+        return success_response(invoices_data, "Invoices retrieved successfully")
+    except HTTPException:
+        raise
+    except Exception as e:
+        handle_error(e, "get invoices by date range")
+
 @router.get("/{invoice_id}/fetch")
 def get_invoice(invoice_id: int, user_info: dict = Depends(require_finance_or_manager)):
     try:

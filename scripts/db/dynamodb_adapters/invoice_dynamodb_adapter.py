@@ -39,25 +39,40 @@ class InvoiceDynamoDBAdapter(BaseDynamoDBAdapter):
         except ClientError:
             return None
     
+    def list_invoices_by_date_range(self, from_date, to_date) -> List[Dict[str, Any]]:
+        try:
+            from boto3.dynamodb.conditions import Attr
+            from_str = from_date.isoformat() if hasattr(from_date, 'isoformat') else str(from_date)
+            to_str = to_date.isoformat() if hasattr(to_date, 'isoformat') else str(to_date)
+            response = self.invoices_table.scan(
+                FilterExpression=Attr('raised_date').between(from_str, to_str)
+            )
+            return response.get('Items', [])
+        except ClientError:
+            return []
+
     def update_invoice(self, invoice_id: int, update_data: Dict[str, Any]) -> bool:
         try:
             from decimal import Decimal
             from datetime import date, datetime
             update_expression = "SET "
+            expression_names = {}
             expression_values = {}
-            
+
             for key, value in update_data.items():
-                # Convert float and date values for DynamoDB compatibility
                 if isinstance(value, float):
                     value = Decimal(str(value))
                 elif isinstance(value, (date, datetime)):
                     value = value.isoformat()
-                update_expression += f"{key} = :{key}, "
+                expression_names[f"#{key}"] = key
+                update_expression += f"#{key} = :{key}, "
                 expression_values[f":{key}"] = value
-            
+
+            update_expression = update_expression.rstrip(", ")
             self.invoices_table.update_item(
                 Key={'id': Decimal(str(invoice_id))},
                 UpdateExpression=update_expression,
+                ExpressionAttributeNames=expression_names,
                 ExpressionAttributeValues=expression_values
             )
             return True
