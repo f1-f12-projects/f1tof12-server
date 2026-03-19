@@ -11,6 +11,10 @@ from scripts.utils.response import success_response, handle_error
 from scripts.utils.cognito import get_cognito_config
 from scripts.constants import AWS_REGION, ALLOWED_ROLES, DEFAULT_ROLE
 import logging
+import os
+import boto3
+import urllib.request
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -75,9 +79,41 @@ def authenticate_with_cognito(username: str, password: str):
         logger.error(f"Error while authenticating: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error while authenticating: {str(e)}")
 
+def get_turnstile_secret() -> str:
+    secret = os.getenv('TURNSTILE_SECRET_KEY')
+    if secret:
+        return secret
+    try:
+        ssm = boto3.client('ssm', region_name='us-east-1')
+        response = ssm.get_parameter(Name='/f1tof12/turnstile/secret-key', WithDecryption=True)
+        return response['Parameter']['Value']
+    except Exception:
+        return ''
+
+def verify_turnstile(token: str) -> bool:
+    secret = get_turnstile_secret()
+    if not secret:
+        logger.warning("Turnstile secret key not configured — skipping verification")
+        return True
+    try:
+        data = json.dumps({"secret": secret, "response": token}).encode()
+        req = urllib.request.Request(
+            "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+            data=data,
+            headers={"Content-Type": "application/json"},
+            method="POST"
+        )
+        with urllib.request.urlopen(req) as res:
+            result = json.loads(res.read())
+            return result.get("success", False)
+    except Exception as e:
+        logger.error(f"Turnstile verification error: {str(e)}")
+        return False
+
 class UserLogin(BaseModel):
     username: str
     password: str
+    turnstile_token: str
     
     @field_validator('password')
     @classmethod
@@ -153,6 +189,8 @@ class PasswordChange(BaseModel):
 @router.post("/login", status_code=status.HTTP_200_OK)
 def login(user: UserLogin):
     logger.info(f"[ENTRY] Login API called for username: {user.username}")
+    if not verify_turnstile(user.turnstile_token):
+        raise HTTPException(status_code=400, detail={"error": "CAPTCHA_FAILED", "message": "CAPTCHA verification failed"})
     try:
         # Use Cognito authentication
         auth_result = authenticate_with_cognito(user.username, user.password)

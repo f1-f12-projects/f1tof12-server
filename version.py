@@ -1,10 +1,13 @@
-__version__ = "4.1.6"
+__version__ = "4.2.0"
 __major_version__ = 4
-__minor_version__ = 1
-__patch_version__ = 6
+__minor_version__ = 2
+__patch_version__ = 0
 
 # Latest version should be on top
 __changelog__ = {
+    "4.2.0": [
+        "Implemented Cloudflare Turnstile CAPTCHA for BOT detection",
+    ],
     "4.1.6": [
         "Added invoice list by date range API with date validation",
         "Fixed invoice update returning 404 due to trailing comma in DynamoDB UpdateExpression",
