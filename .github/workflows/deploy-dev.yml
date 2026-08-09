@@ -23,7 +23,14 @@ jobs:
 
     - name: Package Lambda
       run: |
-        pip install -r requirements.txt -t .
+        pip install \
+          --platform manylinux2014_x86_64 \
+          --target . \
+          --implementation cp \
+          --python-version 3.13 \
+          --only-binary=:all: \
+          --upgrade \
+          -r requirements.txt
         zip -r f1tof12-api-dev-${{ steps.version.outputs.VERSION }}.zip .
 
     - name: Upload to S3
@@ -37,6 +44,8 @@ jobs:
     - name: Update Lambda
       run: |
         aws lambda update-function-code --function-name ${{ secrets.DEV_LAMBDA_FUNCTION }} --s3-bucket ${{ secrets.DEV_S3_BUCKET }} --s3-key f1tof12-api-dev-${{ steps.version.outputs.VERSION }}.zip
+        aws lambda wait function-updated --function-name ${{ secrets.DEV_LAMBDA_FUNCTION }}
+        aws lambda update-function-configuration --function-name ${{ secrets.DEV_LAMBDA_FUNCTION }} --runtime python3.13
       env:
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
