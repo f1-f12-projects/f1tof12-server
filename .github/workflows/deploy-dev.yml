@@ -12,6 +12,11 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v3
 
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.13"
+
     - name: Get version
       id: version
       run: echo "VERSION=$(python -c 'import version; print(version.__version__)')" >> $GITHUB_OUTPUT

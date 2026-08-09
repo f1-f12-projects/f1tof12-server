@@ -1,10 +1,14 @@
-__version__ = "4.2.0"
+__version__ = "4.2.1"
 __major_version__ = 4
 __minor_version__ = 2
-__patch_version__ = 0
+__patch_version__ = 1
 
 # Latest version should be on top
 __changelog__ = {
+    "4.2.1": [
+        "Upgraded runtime to Python 3.13",
+        "Upgraded SQLAlchemy to 2.0.51 for Python 3.13 compatibility",
+    ],
     "4.2.0": [
         "Implemented Cloudflare Turnstile CAPTCHA for BOT detection",
     ],
