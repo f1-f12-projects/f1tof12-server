@@ -1,9 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
 from scripts.db.database_factory import get_database
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, ConfigDict, field_validator
 from datetime import date
-from typing import Optional
 from scripts.utils.response import success_response, handle_error
 from auth import require_finance_or_manager
 
@@ -11,14 +9,14 @@ router = APIRouter(prefix="/invoices", tags=["invoices"])
 
 class InvoiceCreate(BaseModel):
     invoice_number: str
-    reference: Optional[str] = None
+    reference: str | None = None
     company_id: int
-    po_number: Optional[str] = None
+    po_number: str | None = None
     amount: float
     raised_date: date
     due_date: date
     status: str = "pending"
-    remarks: Optional[str] = None
+    remarks: str | None = None
 
 class InvoiceStatusUpdate(BaseModel):
     status: str
@@ -32,25 +30,24 @@ class InvoiceStatusUpdate(BaseModel):
         return v
 
 class InvoiceResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     invoice_number: str
-    reference: Optional[str]
+    reference: str | None
     company_id: int
-    po_number: Optional[str]
+    po_number: str | None
     amount: float
     raised_date: date
     due_date: date
     status: str
-    remarks: Optional[str]
-
-    class Config:
-        from_attributes = True
+    remarks: str | None
 
 @router.post("/create")
 def create_invoice(invoice: InvoiceCreate, user_info: dict = Depends(require_finance_or_manager)):
     try:
         db = get_database()
-        invoice_data = db.invoice.create_invoice(invoice.dict())
+        invoice_data = db.invoice.create_invoice(invoice.model_dump())
         return success_response(invoice_data, "Invoice created successfully")
     except Exception as e:
         handle_error(e, "create invoice")

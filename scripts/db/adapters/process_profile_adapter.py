@@ -1,4 +1,4 @@
-from typing import Optional, Dict, Any
+from typing import Any
 from .base_adapter import BaseAdapter
 from ..models import ProcessProfile, Profile, ProfileStatus
 

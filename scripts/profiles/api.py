@@ -6,16 +6,16 @@ from scripts.db.database_factory import get_database
 from auth import require_recruiter, get_user_info
 from scripts.utils.response import success_response, handle_error
 from scripts.utils.remarks import append_remarks
-from typing import Optional, Dict, Any
+from typing import Dict, Any
 from datetime import date
 
 logger = logging.getLogger(__name__)
 
 class StatusUpdate(BaseModel):
     status: int
-    remarks: Optional[str] = None
-    accepted_offer: Optional[float] = None
-    joining_date: Optional[date] = None
+    remarks: str | None = None
+    accepted_offer: float | None = None
+    joining_date: date | None = None
 
 class RemarksUpdate(BaseModel):
     remarks: str
@@ -30,45 +30,45 @@ class ProfileCreate(BaseModel):
     experience_years: int
     current_location: str
     preferred_location: str
-    current_ctc: Optional[float] = None
-    expected_ctc: Optional[float] = None
-    notice_period: Optional[str] = None
+    current_ctc: float | None = None
+    expected_ctc: float | None = None
+    notice_period: str | None = None
     status: int = 1
-    requirement_id: Optional[int] = None
+    requirement_id: int | None = None
     current_employer: str
     highest_education: str
-    offer_in_hand: Optional[bool] = False
-    variable_pay: Optional[float] = None
-    document_url: Optional[str] = None
+    offer_in_hand: bool | None = False
+    variable_pay: float | None = None
+    document_url: str | None = None
 
 class ProfileUpdate(BaseModel):
-    name: Optional[str] = None
-    email: Optional[str] = None
-    phone: Optional[str] = None
-    skills: Optional[str] = None
-    experience_years: Optional[int] = None
-    current_location: Optional[str] = None
-    preferred_location: Optional[str] = None
-    current_ctc: Optional[float] = None
-    expected_ctc: Optional[float] = None
-    notice_period: Optional[str] = None
-    status: Optional[int] = None
-    remarks: Optional[str] = None
-    accepted_offer: Optional[float] = None
-    joining_date: Optional[date] = None
-    current_employer: Optional[str] = None
-    highest_education: Optional[str] = None
-    offer_in_hand: Optional[bool] = None
-    variable_pay: Optional[float] = None
+    name: str | None = None
+    email: str | None = None
+    phone: str | None = None
+    skills: str | None = None
+    experience_years: int | None = None
+    current_location: str | None = None
+    preferred_location: str | None = None
+    current_ctc: float | None = None
+    expected_ctc: float | None = None
+    notice_period: str | None = None
+    status: int | None = None
+    remarks: str | None = None
+    accepted_offer: float | None = None
+    joining_date: date | None = None
+    current_employer: str | None = None
+    highest_education: str | None = None
+    offer_in_hand: bool | None = None
+    variable_pay: float | None = None
 
 class ProcessProfileCreate(BaseModel):
     requirement_id: int
     profile_id: int
-    remarks: Optional[str] = None
+    remarks: str | None = None
 
 class DateRangeRequest(BaseModel):
-    start_date: Optional[str] = None
-    end_date: Optional[str] = None
+    start_date: str | None = None
+    end_date: str | None = None
 
 async def validate_document(file: UploadFile):
     """Validate document size and type"""
@@ -144,14 +144,14 @@ async def add_profile(
     preferred_location: str = Form(...),
     current_employer: str = Form(...),
     highest_education: str = Form(...),
-    current_ctc: Optional[float] = Form(None),
-    expected_ctc: Optional[float] = Form(None),
-    notice_period: Optional[str] = Form(None),
+    current_ctc: float | None = Form(None),
+    expected_ctc: float | None = Form(None),
+    notice_period: str | None = Form(None),
     status: int = Form(1),
-    requirement_id: Optional[int] = Form(None),
-    offer_in_hand: Optional[bool] = Form(False),
-    variable_pay: Optional[float] = Form(None),
-    document: Optional[UploadFile] = File(None),
+    requirement_id: int | None = Form(None),
+    offer_in_hand: bool | None = Form(False),
+    variable_pay: float | None = Form(None),
+    document: UploadFile | None = File(None),
     user_info: dict = Depends(require_recruiter)
 ):
     # Create ProfileCreate object from form data
@@ -268,8 +268,8 @@ def get_profile(profile_id: int, user_info: dict = Depends(require_recruiter)):
 @router.put("/{profile_id}/update")
 def update_profile(profile_id: int, profile_update: ProfileUpdate, user_info: dict = Depends(require_recruiter)):
     try:
-        logging.info(f"Updating profile id: {profile_id} with data: {profile_update.dict()}")
-        update_data = profile_update.dict(exclude_none=True)
+        logging.info(f"Updating profile id: {profile_id} with data: {profile_update.model_dump()}")
+        update_data = profile_update.model_dump(exclude_none=True)
         logging.info(f"Filtered update_data: {update_data}")
         
         if not update_data:

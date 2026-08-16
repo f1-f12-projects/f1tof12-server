@@ -1,6 +1,5 @@
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
-from typing import Optional
 from datetime import date
 from auth import require_hr, get_user_info
 from scripts.db.database_factory import get_database
@@ -14,12 +13,12 @@ class FinancialYearRequest(BaseModel):
     year: int
     start_date: date
     end_date: date
-    is_active: Optional[bool] = False
+    is_active: bool | None = False
 
 class FinancialYearUpdate(BaseModel):
-    start_date: Optional[date] = None
-    end_date: Optional[date] = None
-    is_active: Optional[bool] = None
+    start_date: date | None = None
+    end_date: date | None = None
+    is_active: bool | None = None
 
 @router.post("/financial-years")
 def create_financial_year(request: FinancialYearRequest, user_info: dict = Depends(require_hr)):

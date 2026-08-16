@@ -1,6 +1,5 @@
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel, field_validator
-from typing import Optional
 from datetime import date, datetime, timedelta
 from auth import get_user_info, require_leave_management, require_hr, validate_cognito_user
 from scripts.db.database_factory import get_database
@@ -42,7 +41,7 @@ class LeaveRequest(BaseModel):
 
 class LeaveApproval(BaseModel):
     status: str
-    comments: Optional[str] = None
+    comments: str | None = None
     
     @field_validator('status')
     @classmethod
@@ -67,9 +66,9 @@ class AssignLeaveRequest(BaseModel):
 
 class AllocateBalanceRequest(BaseModel):
     username: str
-    annual_leave: Optional[int] = None
-    sick_leave: Optional[int] = None
-    casual_leave: Optional[int] = None
+    annual_leave: int | None = None
+    sick_leave: int | None = None
+    casual_leave: int | None = None
 
 # API: Apply for leave - Allows authenticated users to submit leave requests
 # Validates dates, checks balance, prevents overlapping leaves, creates pending request

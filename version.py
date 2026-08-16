@@ -1,10 +1,22 @@
-__version__ = "4.2.1"
+__version__ = "4.2.2"
 __major_version__ = 4
 __minor_version__ = 2
-__patch_version__ = 1
+__patch_version__ = 2
 
 # Latest version should be on top
 __changelog__ = {
+    "4.2.2": [
+        "Upgraded FastAPI to 0.115.12, uvicorn to 0.34.3, mangum to 0.19.0",
+        "Upgraded boto3 to 1.37.28, httpx to 0.28.1, python-jose to 3.5.0",
+        "Upgraded python-dotenv to 1.1.0, SQLAlchemy to 2.0.40",
+        "Migrated deprecated on_event startup to asynccontextmanager lifespan",
+        "Fixed SQLAlchemy declarative_base import to use sqlalchemy.orm",
+        "Replaced deprecated Pydantic .dict() calls with .model_dump()",
+        "Replaced Pydantic class Config with model_config = ConfigDict(...)",
+        "Added missing @classmethod decorator on Pydantic field validators",
+        "Replaced datetime.utcnow() with datetime.now(timezone.utc)",
+        "Modernized type hints to use Python 3.10+ union syntax (X | None, list[X])",
+    ],
     "4.2.1": [
         "Upgraded runtime to Python 3.13",
         "Upgraded SQLAlchemy to 2.0.51 for Python 3.13 compatibility",

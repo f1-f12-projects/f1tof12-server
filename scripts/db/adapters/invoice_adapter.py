@@ -1,4 +1,4 @@
-from typing import Optional, List, Dict, Any
+from typing import Any
 from scripts.db.models import Invoice
 from .base_adapter import BaseAdapter
 

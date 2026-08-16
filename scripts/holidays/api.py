@@ -1,6 +1,5 @@
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel, field_validator
-from typing import List, Optional
 from datetime import date as Date
 from auth import require_hr, get_user_info
 from scripts.db.database_factory import get_database
@@ -14,15 +13,15 @@ class HolidayRequest(BaseModel):
     financial_year_id: int
     name: str
     date: Date
-    is_mandatory: Optional[bool] = True
+    is_mandatory: bool | None = True
 
 class HolidayUpdate(BaseModel):
-    name: Optional[str] = None
-    date: Optional[Date] = None
-    is_mandatory: Optional[bool] = None
+    name: str | None = None
+    date: Date | None = None
+    is_mandatory: bool | None = None
 
 class HolidaySelectionRequest(BaseModel):
-    holiday_ids: List[int]
+    holiday_ids: list[int]
     
     @field_validator('holiday_ids')
     @classmethod

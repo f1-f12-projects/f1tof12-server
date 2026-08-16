@@ -1,4 +1,4 @@
-from typing import Optional, Dict, Any
+from typing import Any
 from datetime import datetime, timezone
 from botocore.exceptions import ClientError
 from .base_dynamodb_adapter import BaseDynamoDBAdapter

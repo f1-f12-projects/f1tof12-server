@@ -1,4 +1,4 @@
-from typing import Optional, Dict, Any
+from typing import Any
 from scripts.db.models import User
 from .base_adapter import BaseAdapter
 

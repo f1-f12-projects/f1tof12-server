@@ -1,4 +1,4 @@
-from typing import Optional, List, Dict, Any
+from typing import Any
 from datetime import datetime, timezone
 from botocore.exceptions import ClientError
 from scripts.db.config import COMPANIES_TABLE

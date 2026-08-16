@@ -22,6 +22,7 @@ class CompanyUpdate(BaseModel):
     status: str = ''
     
     @field_validator('status')
+    @classmethod
     def validate_status(cls, v):
         if v is not None and v not in [USER_STATUS_ACTIVE, USER_STATUS_INACTIVE]:
             raise ValueError(f'Status must be either "{USER_STATUS_ACTIVE}" or "{USER_STATUS_INACTIVE}"')
