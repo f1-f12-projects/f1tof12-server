@@ -1,4 +1,4 @@
-from typing import List, Dict, Any, Optional
+from typing import Any
 from scripts.db.dynamodb_adapters.base_dynamodb_adapter import BaseDynamoDBAdapter
 from scripts.db.config import HOLIDAYS_TABLE, USER_HOLIDAY_SELECTIONS_TABLE
 from datetime import datetime

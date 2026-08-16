@@ -1,7 +1,7 @@
 from fastapi import HTTPException, status, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import boto3
-from typing import List
+
 from scripts.constants import AWS_REGION, DEFAULT_ROLE, ROLES, FINANCE_ROLE, LEAD_ROLE, MANAGER_ROLE, RECRUITER_ROLE, HR_ROLE
 
 security = HTTPBearer()
@@ -55,7 +55,7 @@ def validate_cognito_user(username: str):
             "code": "USER_500"
         })
 
-def require_roles(allowed_roles: List[str]):
+def require_roles(allowed_roles: list[str]):
     def decorator(credentials: HTTPAuthorizationCredentials = Depends(security)):
         user_info = get_user_info(credentials)
         user_role = user_info['role']

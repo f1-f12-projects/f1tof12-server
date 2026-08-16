@@ -4,7 +4,7 @@ from scripts.db.database_factory import get_database
 from auth import require_lead, require_lead_or_recruiter
 from scripts.utils.response import success_response, handle_error
 from .validation import validate_requirement_fields
-from typing import Optional, Dict, Any
+from typing import Dict, Any
 from datetime import date, datetime
 from zoneinfo import ZoneInfo
 import boto3
@@ -19,28 +19,28 @@ class RequirementCreate(BaseModel):
     key_skill: str = Field(alias="key_skill")
     jd: str = Field(alias="jd")
     company_id: int = Field(alias="company_id")
-    spoc_id: Optional[int] = Field(None, alias="spoc_id")
+    spoc_id: int | None = Field(None, alias="spoc_id")
     experience_level: str = Field(alias="experience_level")
     location: str = Field(alias="location")
-    budget: Optional[float] = Field(None, alias="budget")
-    expected_billing_date: Optional[date] = Field(None, alias="expected_billing_date")
+    budget: float | None = Field(None, alias="budget")
+    expected_billing_date: date | None = Field(None, alias="expected_billing_date")
     status_id: int = Field(1, alias="status")
-    req_cust_ref_id: Optional[str] = Field(None, alias="req_cust_ref_id")
-    created_date: Optional[datetime] = Field(None, alias="created_date")
-    role: Optional[str] = Field(None, alias="role")
-    
+    req_cust_ref_id: str | None = Field(None, alias="req_cust_ref_id")
+    created_date: datetime | None = Field(None, alias="created_date")
+    role: str | None = Field(None, alias="role")
+
     class Config:
         populate_by_name = True
 
 class RequirementUpdate(BaseModel):
-    key_skill: Optional[str] = None
-    jd: Optional[str] = None
-    remarks: Optional[str] = None
-    location: Optional[str] = None
-    budget: Optional[float] = None
-    expected_billing_date: Optional[date] = None
-    req_cust_ref_id: Optional[str] = None
-    role: Optional[str] = None
+    key_skill: str | None = None
+    jd: str | None = None
+    remarks: str | None = None
+    location: str | None = None
+    budget: float | None = None
+    expected_billing_date: date | None = None
+    req_cust_ref_id: str | None = None
+    role: str | None = None
 
 class RequirementSPOC(BaseModel):
     spoc_id: int
@@ -50,7 +50,7 @@ class RequirementRecruiter(BaseModel):
 
 class RequirementStatusUpdate(BaseModel):
     status_id: int
-    remarks: Optional[str] = None
+    remarks: str | None = None
 
 class RequirementRemarksUpdate(BaseModel):
     remarks: str
@@ -83,7 +83,7 @@ def add_requirement(requirement: RequirementCreate, user_info: dict = Depends(re
     try:
         logger.info(f"[ENTRY] Add requirement API called by: {user_info.get('username', 'unknown')}")
         validate_requirement_fields(requirement)
-        requirement_dict = requirement.dict()
+        requirement_dict = requirement.model_dump()
         # Set created_date to current IST time if not provided
         if not requirement_dict.get('created_date'):
             requirement_dict['created_date'] = datetime.now(ZoneInfo('Asia/Kolkata'))
@@ -218,7 +218,7 @@ def get_requirement(requirement_id: int, user_info: dict = Depends(require_lead_
 @router.put("/{requirement_id}/update")
 def update_requirement(requirement_id: int, requirement_update: RequirementUpdate, user_info: dict = Depends(require_lead)):
     try:
-        update_data = {k: v for k, v in requirement_update.dict().items() if v is not None}
+        update_data = {k: v for k, v in requirement_update.model_dump().items() if v is not None}
         
         if not update_data:
             raise HTTPException(status_code=400, detail="No valid fields to update")

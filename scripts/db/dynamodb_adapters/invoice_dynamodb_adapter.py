@@ -1,4 +1,4 @@
-from typing import Optional, List, Dict, Any
+from typing import Any
 from botocore.exceptions import ClientError
 from scripts.db.config import INVOICES_TABLE
 from .base_dynamodb_adapter import BaseDynamoDBAdapter

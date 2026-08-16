@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
@@ -23,7 +24,14 @@ load_environment()
 logging.getLogger().setLevel(logging.INFO)
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="F1toF12 API", debug=os.getenv('ENVIRONMENT') == 'dev')
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    logger.info("F1toF12 API starting up")
+    yield
+
+
+app = FastAPI(title="F1toF12 API", debug=os.getenv('ENVIRONMENT') == 'dev', lifespan=lifespan)
 
 @app.middleware("http")
 async def add_cache_control(request: Request, call_next):
@@ -76,10 +84,6 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type", "x-origin", "x-cloudfront-secret"],
     expose_headers=["X-CloudFront-Secret"],
 )
-
-@app.on_event("startup")
-async def startup_event():
-    logger.info("F1toF12 API starting up")
 
 @app.get(f"/{os.getenv('CUSTOMER', 'f1tof12')}/")
 def root():

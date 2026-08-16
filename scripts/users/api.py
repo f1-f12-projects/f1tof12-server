@@ -6,7 +6,6 @@ from hashlib import sha256
 from base64 import b64encode
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from auth import require_admin, require_user_management, require_hr_or_lead
-from typing import Optional
 from scripts.utils.response import success_response, handle_error
 from scripts.utils.cognito import get_cognito_config
 from scripts.constants import AWS_REGION, ALLOWED_ROLES, DEFAULT_ROLE
@@ -147,12 +146,12 @@ class RefreshToken(BaseModel):
         return v.strip()
 
 class UserUpdate(BaseModel):
-    email: Optional[str] = None
-    phone_number: Optional[str] = None
-    given_name: Optional[str] = None
-    family_name: Optional[str] = None
-    status: Optional[str] = None
-    role: Optional[str] = None
+    email: str | None = None
+    phone_number: str | None = None
+    given_name: str | None = None
+    family_name: str | None = None
+    status: str | None = None
+    role: str | None = None
     
     @field_validator('role')
     @classmethod
@@ -165,10 +164,10 @@ class UserCreate(BaseModel):
     username: str
     email: str
     temporary_password: str
-    role: Optional[str] = None
-    given_name: Optional[str] = None
-    family_name: Optional[str] = None
-    phone_number: Optional[str] = None
+    role: str | None = None
+    given_name: str | None = None
+    family_name: str | None = None
+    phone_number: str | None = None
     
     @field_validator('role')
     @classmethod
@@ -210,9 +209,9 @@ def login(user: UserLogin):
             role = DEFAULT_ROLE
         
         # Calculate expiry time
-        from datetime import datetime, timedelta
+        from datetime import datetime, timedelta, timezone
         expires_in_seconds = auth_result.get('ExpiresIn', 3600)  # Default 1 hour
-        expiry_time = datetime.utcnow() + timedelta(seconds=expires_in_seconds)
+        expiry_time = datetime.now(timezone.utc) + timedelta(seconds=expires_in_seconds)
         
         logger.info(f"[EXIT] Login API successful for username: {user.username}")
         return success_response({
@@ -254,9 +253,9 @@ def refresh_token(refresh_data: RefreshToken):
         )
         
         # Calculate expiry time
-        from datetime import datetime, timedelta
+        from datetime import datetime, timedelta, timezone
         expires_in_seconds = response['AuthenticationResult'].get('ExpiresIn', 3600)
-        expiry_time = datetime.utcnow() + timedelta(seconds=expires_in_seconds)
+        expiry_time = datetime.now(timezone.utc) + timedelta(seconds=expires_in_seconds)
         
         logger.info("Token refresh successful - response received from Cognito")
         logger.info("[EXIT] Refresh token API successful")

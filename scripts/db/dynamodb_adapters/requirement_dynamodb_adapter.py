@@ -1,4 +1,4 @@
-from typing import Optional, List, Dict, Any
+from typing import Any
 from botocore.exceptions import ClientError
 from scripts.db.config import REQUIREMENTS_TABLE, REQUIREMENT_STATUSES_TABLE
 from .base_dynamodb_adapter import BaseDynamoDBAdapter

@@ -1,4 +1,4 @@
-from typing import Optional, List, Dict, Any, Type
+from typing import Type
 from sqlalchemy.orm import Session
 from contextlib import contextmanager
 from scripts.db.database import get_db
@@ -12,7 +12,7 @@ class BaseAdapter:
         finally:
             db.close()
     
-    def _to_dict(self, obj, date_fields: Optional[List[str]] = None, datetime_fields: Optional[List[str]] = None) -> Dict[str, Any]:
+    def _to_dict(self, obj, date_fields: list[str] | None = None, datetime_fields: list[str] | None = None) -> dict:
         result = {c.name: getattr(obj, c.name) for c in obj.__table__.columns}
         if date_fields:
             for field in date_fields:
@@ -24,14 +24,14 @@ class BaseAdapter:
                     result[field] = result[field].isoformat()
         return result
     
-    def _create_record(self, model_class: Type, **kwargs) -> Dict[str, Any]:
+    def _create_record(self, model_class: Type, **kwargs) -> dict:
         with self._db_session() as db:
             record = model_class(**kwargs)
             db.add(record)
             db.commit()
             return self._to_dict(record)
     
-    def _update_record(self, model_class: Type, record_id: int, update_data: Dict[str, Any]) -> bool:
+    def _update_record(self, model_class: Type, record_id: int, update_data: dict) -> bool:
         with self._db_session() as db:
             result = db.query(model_class).filter(model_class.id == record_id).update(update_data)
             db.commit()

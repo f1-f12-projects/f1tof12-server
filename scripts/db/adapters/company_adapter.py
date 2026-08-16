@@ -1,4 +1,4 @@
-from typing import Optional, List, Dict, Any
+from typing import Any
 from sqlalchemy import func
 from scripts.db.models import Company
 from .base_adapter import BaseAdapter

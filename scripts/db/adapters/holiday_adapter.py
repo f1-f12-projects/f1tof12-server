@@ -1,4 +1,4 @@
-from typing import List, Dict, Any, Optional
+from typing import Any
 from scripts.db.adapters.base_adapter import BaseAdapter
 from scripts.db.models import HolidayCalendar, UserHolidaySelection, FinancialYear
 from sqlalchemy.orm import joinedload
