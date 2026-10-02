@@ -1,8 +1,4 @@
 from os import getenv
-from scripts.utils.cognito import get_cognito_user_pool_id
-
-# AWS Cognito Configuration
-COGNITO_USER_POOL_ID = get_cognito_user_pool_id()
 
 # Role Constants
 FINANCE_ROLE = 'finance'
